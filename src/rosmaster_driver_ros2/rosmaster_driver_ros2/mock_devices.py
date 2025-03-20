@@ -3,6 +3,7 @@ import numpy as np
 import time
 import threading
 import cv2
+import logging
 
 class MockDevices:
     def __init__(self):
@@ -34,7 +35,7 @@ class MockDevices:
         if not self.cap.isOpened():
             self.cap = cv2.VideoCapture(1)  # 尝试第二个摄像头
         if not self.cap.isOpened():
-            self.get_logger().warn("无法打开摄像头，将使用模拟图像")
+            logging.warning("无法打开摄像头，将使用模拟图像")
 
     def _update_data(self):
         """更新模拟数据的线程"""
