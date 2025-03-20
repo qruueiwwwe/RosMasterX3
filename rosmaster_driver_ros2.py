@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import Twist, Vector3
+from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Imu, LaserScan, Image, BatteryState
-from std_msgs.msg import Bool, String, Int32MultiArray
+from std_msgs.msg import Bool, String
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
@@ -12,6 +12,8 @@ import os
 import json
 import logging
 from datetime import datetime
+from rosmaster_interfaces.msg import Encoder, RobotState
+from rosmaster_interfaces.srv import SetPIDParam
 from .test_interface import TestInterface
 
 class RosMasterDriver(Node):
@@ -43,8 +45,8 @@ class RosMasterDriver(Node):
         self.image_processed_pub = self.create_publisher(Image, '/camera/image_processed', 10)
         self.led_pub = self.create_publisher(String, '/led_control', 10)
         self.buzzer_pub = self.create_publisher(Bool, '/buzzer_cmd', 10)
-        self.encoder_pub = self.create_publisher(Int32MultiArray, '/encoder_data', 10)
-        self.robot_state_pub = self.create_publisher(Twist, '/robot_state', 10)
+        self.encoder_pub = self.create_publisher(Encoder, '/encoder_data', 10)
+        self.robot_state_pub = self.create_publisher(RobotState, '/robot_state', 10)
 
         # 订阅者
         self.cmd_vel_sub = self.create_subscription(
@@ -58,6 +60,13 @@ class RosMasterDriver(Node):
             '/keyboard_event',
             self.keyboard_event_callback,
             10
+        )
+
+        # 服务
+        self.pid_param_server = self.create_service(
+            SetPIDParam,
+            '/set_pid_param',
+            self.set_pid_param_callback
         )
 
         # 创建定时器用于定期发布传感器数据
@@ -157,8 +166,15 @@ class RosMasterDriver(Node):
                 encoder_data = [0, 0, 0, 0]
             
             # 创建编码器消息
-            encoder_msg = Int32MultiArray()
-            encoder_msg.data = encoder_data
+            encoder_msg = Encoder()
+            encoder_msg.header.stamp = self.get_clock().now().to_msg()
+            encoder_msg.header.frame_id = "base_link"
+            
+            # 设置编码器数据
+            encoder_msg.left_front = encoder_data[0]
+            encoder_msg.right_front = encoder_data[1]
+            encoder_msg.left_back = encoder_data[2]
+            encoder_msg.right_back = encoder_data[3]
             
             # 发布消息
             self.encoder_pub.publish(encoder_msg)
@@ -181,22 +197,39 @@ class RosMasterDriver(Node):
                 }
             
             # 创建机器人状态消息
-            state_msg = Twist()
-            state_msg.linear = Vector3(
-                x=robot_state['linear_velocity_x'],
-                y=robot_state['linear_velocity_y'],
-                z=0.0
-            )
-            state_msg.angular = Vector3(
-                x=0.0,
-                y=0.0,
-                z=robot_state['angular_velocity_z']
-            )
+            state_msg = RobotState()
+            state_msg.header.stamp = self.get_clock().now().to_msg()
+            state_msg.header.frame_id = "base_link"
+            
+            # 设置机器人状态数据
+            state_msg.linear_velocity.x = robot_state['linear_velocity_x']
+            state_msg.linear_velocity.y = robot_state['linear_velocity_y']
+            state_msg.angular_velocity.z = robot_state['angular_velocity_z']
+            state_msg.battery_voltage = robot_state['battery_voltage']
+            state_msg.battery_percentage = robot_state['battery_percentage']
             
             # 发布消息
             self.robot_state_pub.publish(state_msg)
         except Exception as e:
             self.get_logger().error(f"发布机器人状态错误: {str(e)}")
+
+    def set_pid_param_callback(self, request, response):
+        """处理PID参数设置请求"""
+        try:
+            if self.is_test_mode:
+                success = self.test_interface.set_pid_param(request.kp, request.ki, request.kd, request.forever)
+            else:
+                # TODO: 实际硬件设置PID参数
+                success = True
+            
+            response.success = success
+            response.message = "PID参数设置成功" if success else "PID参数设置失败"
+            self.get_logger().info(f"PID参数已更新: kp={request.kp}, ki={request.ki}, kd={request.kd}")
+        except Exception as e:
+            response.success = False
+            response.message = f"PID参数设置失败: {str(e)}"
+            self.get_logger().error(f"PID参数设置错误: {str(e)}")
+        return response
 
     def publish_sensor_data(self):
         """发布所有传感器数据"""
