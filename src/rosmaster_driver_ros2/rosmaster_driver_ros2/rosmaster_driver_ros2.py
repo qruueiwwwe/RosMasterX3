@@ -11,7 +11,6 @@ import os
 import json
 import logging
 from datetime import datetime
-from mock_devices import MockIMU, MockLidar, MockCamera, MockBattery
 from Rosmaster import Rosmaster
 from rosmaster_interfaces.msg import Encoder, RobotState
 from rosmaster_interfaces.srv import SetPIDParam
@@ -31,18 +30,6 @@ class RosMasterDriver(Node):
         self.current_speed = 0.0
         self.current_angular = 0.0
         self.lock = threading.Lock()
-
-        # 初始化模拟设备
-        self.imu = MockIMU()
-        self.lidar = MockLidar()
-        self.camera = MockCamera()
-        self.battery = MockBattery()
-
-        # 启动所有模拟设备
-        self.imu.start()
-        self.lidar.start()
-        self.camera.start()
-        self.battery.start()
 
         # 日志文件路径
         self.log_file = os.environ.get("LOG_FILE", "rosmaster_operations.log")
@@ -226,74 +213,61 @@ class RosMasterDriver(Node):
 
     def publish_sensor_data(self):
         """发布所有传感器数据"""
-        self.publish_imu_data()
-        self.publish_lidar_data()
-        self.publish_camera_image()
-        self.publish_battery_state()
-
-    def publish_imu_data(self):
-        """发布IMU数据"""
-        imu_data = self.imu.get_data()
-        imu_msg = Imu()
-        imu_msg.header.stamp = self.get_clock().now().to_msg()
-        imu_msg.header.frame_id = "imu_link"
-
-        imu_msg.linear_acceleration.x = imu_data['acceleration']['x']
-        imu_msg.linear_acceleration.y = imu_data['acceleration']['y']
-        imu_msg.linear_acceleration.z = imu_data['acceleration']['z']
-        imu_msg.angular_velocity.x = imu_data['angular_velocity']['x']
-        imu_msg.angular_velocity.y = imu_data['angular_velocity']['y']
-        imu_msg.angular_velocity.z = imu_data['angular_velocity']['z']
-
-        with self.lock:
+        try:
+            # 获取IMU数据
+            imu_data = self.rm.get_imu_data()
+            imu_msg = Imu()
+            imu_msg.header.stamp = self.get_clock().now().to_msg()
+            imu_msg.header.frame_id = "imu_link"
+            imu_msg.linear_acceleration.x = imu_data['acceleration']['x']
+            imu_msg.linear_acceleration.y = imu_data['acceleration']['y']
+            imu_msg.linear_acceleration.z = imu_data['acceleration']['z']
+            imu_msg.angular_velocity.x = imu_data['angular_velocity']['x']
+            imu_msg.angular_velocity.y = imu_data['angular_velocity']['y']
+            imu_msg.angular_velocity.z = imu_data['angular_velocity']['z']
             self.imu_pub.publish(imu_msg)
 
-    def publish_lidar_data(self):
-        """发布激光雷达数据"""
-        scan_msg = LaserScan()
-        scan_msg.header.stamp = self.get_clock().now().to_msg()
-        scan_msg.header.frame_id = "laser_link"
-        scan_msg.angle_min = self.lidar.angle_min
-        scan_msg.angle_max = self.lidar.angle_max
-        scan_msg.angle_increment = 3.14159 / 180
-        scan_msg.range_min = self.lidar.range_min
-        scan_msg.range_max = self.lidar.range_max
-        scan_msg.ranges = self.lidar.get_scan()
-
-        with self.lock:
+            # 获取激光雷达数据
+            scan_data = self.rm.get_lidar_data()
+            scan_msg = LaserScan()
+            scan_msg.header.stamp = self.get_clock().now().to_msg()
+            scan_msg.header.frame_id = "laser_link"
+            scan_msg.angle_min = -3.14159
+            scan_msg.angle_max = 3.14159
+            scan_msg.angle_increment = 3.14159 / 180
+            scan_msg.range_min = 0.1
+            scan_msg.range_max = 10.0
+            scan_msg.ranges = scan_data
             self.scan_pub.publish(scan_msg)
 
-    def publish_camera_image(self):
-        """发布摄像头图像"""
-        frame = self.camera.get_frame()
-        if frame is not None:
-            ros_image = self.cv_bridge.cv2_to_imgmsg(frame, "bgr8")
-            ros_image.header.stamp = self.get_clock().now().to_msg()
-            with self.lock:
+            # 获取摄像头图像
+            frame = self.rm.get_camera_image()
+            if frame is not None:
+                ros_image = self.cv_bridge.cv2_to_imgmsg(frame, "bgr8")
+                ros_image.header.stamp = self.get_clock().now().to_msg()
                 self.image_pub.publish(ros_image)
 
-            # 图像预处理
-            processed_image = cv2.GaussianBlur(frame, (5, 5), 0)
-            ros_processed_image = self.cv_bridge.cv2_to_imgmsg(processed_image, "bgr8")
-            ros_processed_image.header.stamp = self.get_clock().now().to_msg()
-            with self.lock:
+                # 图像预处理
+                processed_image = cv2.GaussianBlur(frame, (5, 5), 0)
+                ros_processed_image = self.cv_bridge.cv2_to_imgmsg(processed_image, "bgr8")
+                ros_processed_image.header.stamp = self.get_clock().now().to_msg()
                 self.image_processed_pub.publish(ros_processed_image)
 
-    def publish_battery_state(self):
-        """发布电池状态"""
-        battery_state = self.battery.get_state()
-        battery_msg = BatteryState()
-        battery_msg.header.stamp = self.get_clock().now().to_msg()
-        battery_msg.voltage = battery_state['voltage']
-        battery_msg.percentage = battery_state['percentage']
+            # 获取电池状态
+            battery_state = self.rm.get_battery_state()
+            battery_msg = BatteryState()
+            battery_msg.header.stamp = self.get_clock().now().to_msg()
+            battery_msg.voltage = battery_state['voltage']
+            battery_msg.percentage = battery_state['percentage']
+            self.battery_pub.publish(battery_msg)
 
-        if battery_msg.voltage < 9.6:
-            with self.lock:
+            # 检查电池电量
+            if battery_msg.voltage < 9.6:
                 self.buzzer_pub.publish(Bool(True))  # 低电量报警
                 self.log_operation("low_battery", battery_msg.voltage, "battery")
 
-        with self.lock:
-            self.battery_pub.publish(battery_msg)
+        except Exception as e:
+            self.get_logger().error(f"发布传感器数据错误: {str(e)}")
 
     def emergency_stop(self):
         """紧急停止"""
@@ -307,10 +281,6 @@ class RosMasterDriver(Node):
 
     def __del__(self):
         """清理资源"""
-        self.imu.stop()
-        self.lidar.stop()
-        self.camera.stop()
-        self.battery.stop()
         self.rm.set_car_motion(0.0, 0.0, 0.0)  # 确保电机停止
 
 def main(args=None):
