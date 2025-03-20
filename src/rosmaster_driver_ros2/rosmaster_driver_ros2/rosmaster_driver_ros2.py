@@ -12,7 +12,9 @@ import os
 import json
 import logging
 from datetime import datetime
-from .test_interface import TestInterface
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from rosmaster_driver_ros2.test_interface import TestInterface
 
 class RosMasterDriver(Node):
     def __init__(self):
@@ -31,7 +33,7 @@ class RosMasterDriver(Node):
         # 初始化测试接口
         self.test_interface = TestInterface() if self.is_test_mode else None
         
-        # 日志文件路径
+        # 日志文件路径      
         self.log_file = os.environ.get("LOG_FILE", "rosmaster_operations.log")
         self._init_logging()
 

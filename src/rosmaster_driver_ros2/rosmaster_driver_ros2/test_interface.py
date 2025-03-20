@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-from .mock_devices import MockDevices
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from rosmaster_driver_ros2.mock_devices import MockDevices
 
 class TestInterface:
     def __init__(self):
