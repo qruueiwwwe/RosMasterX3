@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
-import sys
-import os
-
-# 添加当前目录到Python路径
-current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(current_dir)
-
-from mock_devices import MockDevices
+from .mock_devices import MockDevices
 
 class TestInterface:
     def __init__(self):
