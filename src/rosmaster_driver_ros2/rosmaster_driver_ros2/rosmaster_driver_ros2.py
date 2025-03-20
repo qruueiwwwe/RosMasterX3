@@ -6,31 +6,33 @@ from sensor_msgs.msg import Imu, LaserScan, Image, BatteryState
 from std_msgs.msg import Bool, String
 from cv_bridge import CvBridge
 import cv2
+import numpy as np
 import threading
 import os
 import json
 import logging
 from datetime import datetime
-from Rosmaster import Rosmaster
 from rosmaster_interfaces.msg import Encoder, RobotState
 from rosmaster_interfaces.srv import SetPIDParam
+from .test_interface import TestInterface
 
 class RosMasterDriver(Node):
     def __init__(self):
         super().__init__('rosmaster_driver')
-        
-        # 初始化Rosmaster对象
-        self.rm = Rosmaster()
-        
-        # 设置PID参数
-        self.rm.set_pid_param(kp=1.0, ki=0.1, kd=0.05, forever=True)
         
         # 初始化变量
         self.cv_bridge = CvBridge()
         self.current_speed = 0.0
         self.current_angular = 0.0
         self.lock = threading.Lock()
-
+        
+        # 检查是否在测试模式
+        self.is_test_mode = os.environ.get('ROBOT_TEST_MODE', 'false').lower() == 'true'
+        self.get_logger().info(f"当前运行模式: {'测试模式' if self.is_test_mode else '实际模式'}")
+        
+        # 初始化测试接口
+        self.test_interface = TestInterface() if self.is_test_mode else None
+        
         # 日志文件路径
         self.log_file = os.environ.get("LOG_FILE", "rosmaster_operations.log")
         self._init_logging()
@@ -72,6 +74,8 @@ class RosMasterDriver(Node):
         self.create_timer(0.05, self.publish_encoder_data)  # 20Hz
         self.create_timer(0.1, self.publish_robot_state)  # 10Hz
 
+        self.get_logger().info('ROSMASTER驱动节点已启动')
+
     def _init_logging(self):
         """初始化日志记录"""
         logging.basicConfig(
@@ -107,11 +111,16 @@ class RosMasterDriver(Node):
                 v_y = max(min(v_y, 1.0), -1.0)
                 v_z = max(min(v_z, 5.0), -5.0)
                 
-                # 调用Rosmaster库的set_car_motion函数
-                self.rm.set_car_motion(v_x, v_y, v_z)
-                
+                # 更新状态
                 self.current_speed = v_x
                 self.current_angular = v_z
+                
+                if self.is_test_mode:
+                    self.test_interface.set_car_motion(v_x, v_y, v_z)
+                else:
+                    # TODO: 实际硬件控制代码
+                    pass
+                
                 self.get_logger().info(f"收到cmd_vel: v_x={v_x}, v_y={v_y}, v_z={v_z}")
                 self.log_operation("cmd_vel", v_x, "motion")
         except Exception as e:
@@ -150,8 +159,11 @@ class RosMasterDriver(Node):
     def publish_encoder_data(self):
         """发布编码器数据"""
         try:
-            # 获取编码器数据
-            encoder_data = self.rm.get_encoder_data()
+            if self.is_test_mode:
+                encoder_data = self.test_interface.get_encoder_data()
+            else:
+                # TODO: 实际硬件获取编码器数据
+                encoder_data = [0, 0, 0, 0]
             
             # 创建编码器消息
             encoder_msg = Encoder()
@@ -172,8 +184,17 @@ class RosMasterDriver(Node):
     def publish_robot_state(self):
         """发布机器人状态"""
         try:
-            # 获取机器人状态数据
-            robot_state = self.rm.get_robot_state()
+            if self.is_test_mode:
+                robot_state = self.test_interface.get_robot_state()
+            else:
+                # TODO: 实际硬件获取机器人状态
+                robot_state = {
+                    'linear_velocity_x': self.current_speed,
+                    'linear_velocity_y': 0.0,
+                    'angular_velocity_z': self.current_angular,
+                    'battery_voltage': 12.0,
+                    'battery_percentage': 100.0
+                }
             
             # 创建机器人状态消息
             state_msg = RobotState()
@@ -195,15 +216,14 @@ class RosMasterDriver(Node):
     def set_pid_param_callback(self, request, response):
         """处理PID参数设置请求"""
         try:
-            # 设置PID参数
-            self.rm.set_pid_param(
-                kp=request.kp,
-                ki=request.ki,
-                kd=request.kd,
-                forever=request.forever
-            )
-            response.success = True
-            response.message = "PID参数设置成功"
+            if self.is_test_mode:
+                success = self.test_interface.set_pid_param(request.kp, request.ki, request.kd, request.forever)
+            else:
+                # TODO: 实际硬件设置PID参数
+                success = True
+            
+            response.success = success
+            response.message = "PID参数设置成功" if success else "PID参数设置失败"
             self.get_logger().info(f"PID参数已更新: kp={request.kp}, ki={request.ki}, kd={request.kd}")
         except Exception as e:
             response.success = False
@@ -214,8 +234,20 @@ class RosMasterDriver(Node):
     def publish_sensor_data(self):
         """发布所有传感器数据"""
         try:
-            # 获取IMU数据
-            imu_data = self.rm.get_imu_data()
+            if self.is_test_mode:
+                imu_data = self.test_interface.get_imu_data()
+                lidar_data = self.test_interface.get_lidar_data()
+                camera_frame = self.test_interface.get_camera_image()
+                battery_state = self.test_interface.get_battery_state()
+            else:
+                # TODO: 实际硬件获取传感器数据
+                imu_data = {'acceleration': {'x': 0.0, 'y': 0.0, 'z': 9.81},
+                           'angular_velocity': {'x': 0.0, 'y': 0.0, 'z': 0.0}}
+                lidar_data = [10.0] * 360
+                camera_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+                battery_state = {'voltage': 12.0, 'percentage': 100.0}
+            
+            # 发布IMU数据
             imu_msg = Imu()
             imu_msg.header.stamp = self.get_clock().now().to_msg()
             imu_msg.header.frame_id = "imu_link"
@@ -227,8 +259,7 @@ class RosMasterDriver(Node):
             imu_msg.angular_velocity.z = imu_data['angular_velocity']['z']
             self.imu_pub.publish(imu_msg)
 
-            # 获取激光雷达数据
-            scan_data = self.rm.get_lidar_data()
+            # 发布激光雷达数据
             scan_msg = LaserScan()
             scan_msg.header.stamp = self.get_clock().now().to_msg()
             scan_msg.header.frame_id = "laser_link"
@@ -237,24 +268,22 @@ class RosMasterDriver(Node):
             scan_msg.angle_increment = 3.14159 / 180
             scan_msg.range_min = 0.1
             scan_msg.range_max = 10.0
-            scan_msg.ranges = scan_data
+            scan_msg.ranges = lidar_data
             self.scan_pub.publish(scan_msg)
 
-            # 获取摄像头图像
-            frame = self.rm.get_camera_image()
-            if frame is not None:
-                ros_image = self.cv_bridge.cv2_to_imgmsg(frame, "bgr8")
+            # 发布摄像头图像
+            if camera_frame is not None:
+                ros_image = self.cv_bridge.cv2_to_imgmsg(camera_frame, "bgr8")
                 ros_image.header.stamp = self.get_clock().now().to_msg()
                 self.image_pub.publish(ros_image)
 
                 # 图像预处理
-                processed_image = cv2.GaussianBlur(frame, (5, 5), 0)
+                processed_image = cv2.GaussianBlur(camera_frame, (5, 5), 0)
                 ros_processed_image = self.cv_bridge.cv2_to_imgmsg(processed_image, "bgr8")
                 ros_processed_image.header.stamp = self.get_clock().now().to_msg()
                 self.image_processed_pub.publish(ros_processed_image)
 
-            # 获取电池状态
-            battery_state = self.rm.get_battery_state()
+            # 发布电池状态
             battery_msg = BatteryState()
             battery_msg.header.stamp = self.get_clock().now().to_msg()
             battery_msg.voltage = battery_state['voltage']
@@ -274,14 +303,14 @@ class RosMasterDriver(Node):
         with self.lock:
             self.current_speed = 0.0
             self.current_angular = 0.0
-            self.rm.set_car_motion(0.0, 0.0, 0.0)  # 停止所有电机
+            if self.is_test_mode:
+                self.test_interface.set_car_motion(0.0, 0.0, 0.0)
+            else:
+                # TODO: 实际硬件紧急停止
+                pass
             self.buzzer_pub.publish(Bool(True))  # 触发蜂鸣器
             self.log_operation("emergency_stop", 0.0, "emergency")
             self.get_logger().info("紧急停止已激活")
-
-    def __del__(self):
-        """清理资源"""
-        self.rm.set_car_motion(0.0, 0.0, 0.0)  # 确保电机停止
 
 def main(args=None):
     rclpy.init(args=args)
@@ -291,6 +320,8 @@ def main(args=None):
     except KeyboardInterrupt:
         driver.emergency_stop()
     finally:
+        if driver.test_interface:
+            driver.test_interface.stop()
         driver.destroy_node()
         rclpy.shutdown()
 
