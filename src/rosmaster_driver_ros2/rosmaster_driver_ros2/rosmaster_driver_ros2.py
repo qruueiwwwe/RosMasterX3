@@ -13,8 +13,12 @@ import json
 import logging
 from datetime import datetime
 import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from rosmaster_driver_ros2.test_interface import TestInterface
+
+# 添加当前目录到Python路径
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(current_dir)
+
+from test_interface import TestInterface
 
 class RosMasterDriver(Node):
     def __init__(self):
@@ -47,20 +51,11 @@ class RosMasterDriver(Node):
         self.buzzer_pub = self.create_publisher(Bool, '/buzzer_cmd', 10)
         self.encoder_pub = self.create_publisher(Int32MultiArray, '/encoder_data', 10)
         self.robot_state_pub = self.create_publisher(Twist, '/robot_state', 10)
+        self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
 
         # 订阅者
-        self.cmd_vel_sub = self.create_subscription(
-            Twist,
-            '/cmd_vel',
-            self.cmd_vel_callback,
-            10
-        )
-        self.keyboard_event_sub = self.create_subscription(
-            String,
-            '/keyboard_event',
-            self.keyboard_event_callback,
-            10
-        )
+        self.create_subscription(Twist, '/cmd_vel', self.cmd_vel_callback, 10)
+        self.create_subscription(String, '/keyboard_event', self.keyboard_event_callback, 10)
 
         # 创建定时器用于定期发布传感器数据
         self.create_timer(0.1, self.publish_sensor_data)  # 10Hz
@@ -140,13 +135,13 @@ class RosMasterDriver(Node):
             twist_msg.angular.z = 0.0
 
         # 发布运动控制指令
-        self.cmd_vel_callback(twist_msg)
+        self.cmd_vel_pub.publish(twist_msg)
         self.log_operation("keyboard_event", key, "motion")
 
         if key == "start":
             with self.lock:
-                self.led_pub.publish(String("green"))  # 控制LED灯条为绿色
-                self.buzzer_pub.publish(Bool(True))  # 触发蜂鸣器
+                self.led_pub.publish(String(data="green"))  # 控制LED灯条为绿色
+                self.buzzer_pub.publish(Bool(data=True))  # 触发蜂鸣器
                 self.log_operation("keyboard_event", 1.0, "led_buzzer")
 
     def publish_encoder_data(self):

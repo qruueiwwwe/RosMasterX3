@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from rosmaster_driver_ros2.mock_devices import MockDevices
+
+# 添加当前目录到Python路径
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(current_dir)
+
+from mock_devices import MockDevices
 
 class TestInterface:
     def __init__(self):
