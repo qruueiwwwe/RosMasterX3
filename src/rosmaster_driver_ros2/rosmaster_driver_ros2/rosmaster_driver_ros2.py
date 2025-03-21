@@ -13,64 +13,87 @@ import json
 import logging
 from datetime import datetime
 import sys
-import RPi.GPIO as GPIO
+import Jetson.GPIO as GPIO
 from Rosmaster import Rosmaster
 
-# GPIO引脚定义
+# GPIO Pin Definitions
 class GpioConfig:
-    # 电机控制引脚
-    MOTOR_LEFT_FRONT = 17  # 左前电机
-    MOTOR_RIGHT_FRONT = 18  # 右前电机
-    MOTOR_LEFT_BACK = 27  # 左后电机
-    MOTOR_RIGHT_BACK = 22  # 右后电机
+    # Motor Control Pins
+    MOTOR_LEFT_FRONT = 17  # Left Front Motor
+    MOTOR_RIGHT_FRONT = 18  # Right Front Motor
+    MOTOR_LEFT_BACK = 27  # Left Back Motor
+    MOTOR_RIGHT_BACK = 22  # Right Back Motor
     
-    # 编码器引脚
-    ENCODER_LEFT_FRONT = 23  # 左前编码器
-    ENCODER_RIGHT_FRONT = 24  # 右前编码器
-    ENCODER_LEFT_BACK = 25  # 左后编码器
-    ENCODER_RIGHT_BACK = 8  # 右后编码器
+    # Encoder Pins
+    ENCODER_LEFT_FRONT = 23  # Left Front Encoder
+    ENCODER_RIGHT_FRONT = 24  # Right Front Encoder
+    ENCODER_LEFT_BACK = 25  # Left Back Encoder
+    ENCODER_RIGHT_BACK = 8  # Right Back Encoder
     
-    # 其他功能引脚
-    LED_PIN = 12  # LED控制引脚
-    BUZZER_PIN = 13  # 蜂鸣器引脚
+    # Other Function Pins
+    LED_PIN = 12  # LED Control Pin
+    BUZZER_PIN = 13  # Buzzer Pin
 
 class RosMasterDriver(Node):
     def __init__(self):
         super().__init__('rosmaster_driver')
         
-        # 初始化变量
+        # Initialize Variables
         self.cv_bridge = CvBridge()
         self.current_speed = 0.0
         self.current_angular = 0.0
         self.lock = threading.Lock()
         self.is_real_robot = False
         
-        # 初始化GPIO
-        self._init_gpio()
+        # Initialize GPIO
+        try:
+            # Set GPIO Mode to BCM
+            GPIO.setmode(GPIO.BCM)
+            
+            # Set Motor Control Pins as Output
+            GPIO.setup(GpioConfig.MOTOR_LEFT_FRONT, GPIO.OUT)
+            GPIO.setup(GpioConfig.MOTOR_RIGHT_FRONT, GPIO.OUT)
+            GPIO.setup(GpioConfig.MOTOR_LEFT_BACK, GPIO.OUT)
+            GPIO.setup(GpioConfig.MOTOR_RIGHT_BACK, GPIO.OUT)
+            
+            # Set Encoder Pins as Input
+            GPIO.setup(GpioConfig.ENCODER_LEFT_FRONT, GPIO.IN)
+            GPIO.setup(GpioConfig.ENCODER_RIGHT_FRONT, GPIO.IN)
+            GPIO.setup(GpioConfig.ENCODER_LEFT_BACK, GPIO.IN)
+            GPIO.setup(GpioConfig.ENCODER_RIGHT_BACK, GPIO.IN)
+            
+            # Set Other Function Pins
+            GPIO.setup(GpioConfig.LED_PIN, GPIO.OUT)
+            GPIO.setup(GpioConfig.BUZZER_PIN, GPIO.OUT)
+            
+            self.get_logger().info("GPIO Initialization Successful")
+        except Exception as e:
+            self.get_logger().error(f"GPIO Initialization Failed: {str(e)}")
+            raise
         
-        # 尝试初始化真实机器人
+        # Try to Initialize Real Robot
         try:
             self.rm = Rosmaster()
             self.rm.create_receive_threading()
             self.is_real_robot = True
-            self.get_logger().info("成功连接到真实机器人")
+            self.get_logger().info("Successfully Connected to Real Robot")
         except Exception as e:
-            self.get_logger().warn(f"无法连接到真实机器人: {str(e)}")
-            self.get_logger().info("切换到测试模式")
+            self.get_logger().warn(f"Unable to Connect to Real Robot: {str(e)}")
+            self.get_logger().info("Switching to Test Mode")
             self.is_real_robot = False
-            # 导入测试接口
+            # Import Test Interface
             try:
                 from test_interface import TestInterface
                 self.test_interface = TestInterface()
             except ImportError as e:
-                self.get_logger().error(f"无法导入测试接口: {str(e)}")
+                self.get_logger().error(f"Unable to Import Test Interface: {str(e)}")
                 raise
 
-        # 日志文件路径
+        # Log File Path
         self.log_file = os.environ.get("LOG_FILE", "rosmaster_operations.log")
         self._init_logging()
 
-        # 发布者
+        # Publishers
         self.imu_pub = self.create_publisher(Imu, '/imu/data', 10)
         self.scan_pub = self.create_publisher(LaserScan, '/scan', 10)
         self.image_pub = self.create_publisher(Image, '/camera/image_raw', 10)
@@ -82,7 +105,7 @@ class RosMasterDriver(Node):
         self.robot_state_pub = self.create_publisher(Twist, '/robot_state', 10)
         self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
 
-        # 订阅者
+        # Subscribers
         self.cmd_vel_sub = self.create_subscription(
             Twist,
             '/cmd_vel',
@@ -96,21 +119,21 @@ class RosMasterDriver(Node):
             10
         )
 
-        # 创建定时器用于定期发布传感器数据
+        # Create Timer for Regularly Publishing Sensor Data
         self.create_timer(0.1, self.publish_sensor_data)  # 10Hz
         self.create_timer(0.05, self.publish_encoder_data)  # 20Hz
         self.create_timer(0.1, self.publish_robot_state)  # 10Hz
 
-        # 启动数据接收线程
+        # Start Data Reception Thread
         self.rm.create_receive_threading()
         
-        # 设置自动数据上报
+        # Set Auto Data Reporting
         self.set_auto_report_state(True, forever=False)
 
-        self.get_logger().info('ROSMASTER驱动节点已启动')
+        self.get_logger().info('ROSMASTER Driver Node Started')
 
     def _init_logging(self):
-        """初始化日志记录"""
+        """Initialize Logging"""
         logging.basicConfig(
             filename=self.log_file,
             level=logging.INFO,
@@ -118,7 +141,7 @@ class RosMasterDriver(Node):
         )
 
     def log_operation(self, operation: str, value: float, operation_type: str):
-        """记录操作到日志文件"""
+        """Record Operation to Log File"""
         try:
             log_entry = {
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -128,99 +151,99 @@ class RosMasterDriver(Node):
             }
             logging.info(f"JSON_LOG:{json.dumps(log_entry)}")
         except Exception as e:
-            logging.error(f"记录操作失败: {str(e)}")
+            logging.error(f"Failed to Record Operation: {str(e)}")
 
     def cmd_vel_callback(self, msg):
-        """处理底盘运动控制指令"""
+        """Handle Chassis Motion Control Commands"""
         try:
             with self.lock:
-                # 获取线速度和角速度
+                # Get Linear and Angular Velocities
                 v_x = msg.linear.x
                 v_y = msg.linear.y
                 v_z = msg.angular.z
                 
-                # 限制速度范围
+                # Limit Speed Range
                 v_x = max(min(v_x, 1.0), -1.0)
                 v_y = max(min(v_y, 1.0), -1.0)
                 v_z = max(min(v_z, 5.0), -5.0)
                 
                 if self.is_real_robot:
-                    # 真实机器人控制
+                    # Real Robot Control
                     self.rm.set_car_motion(v_x, v_y, v_z)
                 else:
-                    # 测试模式控制
+                    # Test Mode Control
                     self.test_interface.set_car_motion(v_x, v_y, v_z)
                 
                 self.current_speed = v_x
                 self.current_angular = v_z
-                self.get_logger().info(f"收到cmd_vel: v_x={v_x}, v_y={v_y}, v_z={v_z}")
+                self.get_logger().info(f"Received cmd_vel: v_x={v_x}, v_y={v_y}, v_z={v_z}")
                 self.log_operation("cmd_vel", v_x, "motion")
         except Exception as e:
-            self.get_logger().error(f"cmd_vel_callback错误: {str(e)}")
+            self.get_logger().error(f"cmd_vel_callback Error: {str(e)}")
             self.log_operation("cmd_vel_error", self.current_speed, f"Error: {str(e)}")
 
     def keyboard_event_callback(self, msg):
-        """处理按键事件"""
+        """Handle Keyboard Events"""
         key = msg.data
-        self.get_logger().info(f"收到键盘事件: {key}")
+        self.get_logger().info(f"Received Keyboard Event: {key}")
 
-        # 创建Twist消息
+        # Create Twist Message
         twist_msg = Twist()
-        if key == "w":  # 前进
+        if key == "w":  # Forward
             twist_msg.linear.x = 0.5
-        elif key == "s":  # 后退
+        elif key == "s":  # Backward
             twist_msg.linear.x = -0.5
-        elif key == "a":  # 左转
+        elif key == "a":  # Turn Left
             twist_msg.angular.z = 0.5
-        elif key == "d":  # 右转
+        elif key == "d":  # Turn Right
             twist_msg.angular.z = -0.5
-        elif key == "space":  # 停止
+        elif key == "space":  # Stop
             twist_msg.linear.x = 0.0
             twist_msg.angular.z = 0.0
 
-        # 发布运动控制指令
+        # Publish Motion Control Command
         self.cmd_vel_pub.publish(twist_msg)
         self.log_operation("keyboard_event", key, "motion")
 
         if key == "start":
             with self.lock:
-                self.led_pub.publish(String(data="green"))  # 控制LED灯条为绿色
-                self.buzzer_pub.publish(Bool(data=True))  # 触发蜂鸣器
+                self.led_pub.publish(String(data="green"))  # Control LED Strip to Green
+                self.buzzer_pub.publish(Bool(data=True))  # Trigger Buzzer
                 self.log_operation("keyboard_event", 1.0, "led_buzzer")
 
     def publish_encoder_data(self):
-        """发布编码器数据"""
+        """Publish Encoder Data"""
         try:
             if self.is_real_robot:
-                # 获取真实编码器数据
+                # Get Real Encoder Data
                 encoder_data = self.rm.get_encoder_data()
             else:
-                # 获取测试编码器数据
+                # Get Test Encoder Data
                 encoder_data = self.test_interface.get_encoder_data()
             
-            # 创建编码器消息
+            # Create Encoder Message
             encoder_msg = Int32MultiArray()
             encoder_msg.data = encoder_data
             
-            # 发布消息
+            # Publish Message
             self.encoder_pub.publish(encoder_msg)
             
-            # 清除数据缓存
+            # Clear Data Cache
             self.clear_auto_report_data()
         except Exception as e:
-            self.get_logger().error(f"发布编码器数据错误: {str(e)}")
+            self.get_logger().error(f"Error Publishing Encoder Data: {str(e)}")
 
     def publish_robot_state(self):
-        """发布机器人状态"""
+        """Publish Robot State"""
         try:
             if self.is_real_robot:
-                # 获取真实机器人状态
+                # Get Real Robot State
                 robot_state = self.rm.get_robot_state()
             else:
-                # 获取测试机器人状态
+                # Get Test Robot State
                 robot_state = self.test_interface.get_robot_state()
             
-            # 创建机器人状态消息
+            # Create Robot State Message
             state_msg = Twist()
             state_msg.linear = Vector3(
                 x=robot_state['linear_velocity_x'],
@@ -233,35 +256,143 @@ class RosMasterDriver(Node):
                 z=robot_state['angular_velocity_z']
             )
             
-            # 发布消息
+            # Publish Message
             self.robot_state_pub.publish(state_msg)
         except Exception as e:
-            self.get_logger().error(f"发布机器人状态错误: {str(e)}")
+            self.get_logger().error(f"Error Publishing Robot State: {str(e)}")
 
     def publish_sensor_data(self):
-        """发布所有传感器数据"""
+        """Publish All Sensor Data"""
         try:
             if self.is_real_robot:
-                # 发布真实传感器数据
+                # Publish Real Sensor Data
                 self.publish_real_sensor_data()
             else:
-                # 发布测试传感器数据
+                # Publish Test Sensor Data
                 self.publish_test_sensor_data()
         except Exception as e:
-            self.get_logger().error(f"发布传感器数据错误: {str(e)}")
+            self.get_logger().error(f"Error Publishing Sensor Data: {str(e)}")
 
     def publish_real_sensor_data(self):
-        """发布真实传感器数据"""
-        # 实现真实传感器数据发布
-        pass
+        """Publish Real Sensor Data"""
+        try:
+            # Get IMU Data
+            imu_data = self.rm.get_imu_data()
+            imu_msg = Imu()
+            imu_msg.header.stamp = self.get_clock().now().to_msg()
+            imu_msg.header.frame_id = "imu_link"
+            imu_msg.linear_acceleration.x = imu_data['acceleration']['x']
+            imu_msg.linear_acceleration.y = imu_data['acceleration']['y']
+            imu_msg.linear_acceleration.z = imu_data['acceleration']['z']
+            imu_msg.angular_velocity.x = imu_data['angular_velocity']['x']
+            imu_msg.angular_velocity.y = imu_data['angular_velocity']['y']
+            imu_msg.angular_velocity.z = imu_data['angular_velocity']['z']
+            self.imu_pub.publish(imu_msg)
+
+            # Get LiDAR Data
+            lidar_data = self.rm.get_lidar_data()
+            scan_msg = LaserScan()
+            scan_msg.header.stamp = self.get_clock().now().to_msg()
+            scan_msg.header.frame_id = "laser_link"
+            scan_msg.angle_min = lidar_data['angle_min']
+            scan_msg.angle_max = lidar_data['angle_max']
+            scan_msg.angle_increment = lidar_data['angle_increment']
+            scan_msg.range_min = lidar_data['range_min']
+            scan_msg.range_max = lidar_data['range_max']
+            scan_msg.ranges = lidar_data['ranges']
+            self.scan_pub.publish(scan_msg)
+
+            # Get Camera Image
+            camera_data = self.rm.get_camera_data()
+            if camera_data is not None:
+                # Convert raw image data to ROS Image message
+                image_msg = self.cv_bridge.cv2_to_imgmsg(camera_data, "bgr8")
+                image_msg.header.stamp = self.get_clock().now().to_msg()
+                image_msg.header.frame_id = "camera_link"
+                self.image_pub.publish(image_msg)
+
+                # Process and publish processed image
+                processed_image = cv2.GaussianBlur(camera_data, (5, 5), 0)
+                processed_msg = self.cv_bridge.cv2_to_imgmsg(processed_image, "bgr8")
+                processed_msg.header.stamp = self.get_clock().now().to_msg()
+                processed_msg.header.frame_id = "camera_link"
+                self.image_processed_pub.publish(processed_msg)
+
+            # Get Battery State
+            battery_data = self.rm.get_battery_data()
+            battery_msg = BatteryState()
+            battery_msg.header.stamp = self.get_clock().now().to_msg()
+            battery_msg.voltage = battery_data['voltage']
+            battery_msg.percentage = battery_data['percentage']
+            self.battery_pub.publish(battery_msg)
+
+            # Check Battery Level and Trigger Warning if Low
+            if battery_msg.percentage < 20:  # 20% threshold
+                self.buzzer_pub.publish(Bool(True))
+                self.get_logger().warn("Low Battery Warning!")
+
+        except Exception as e:
+            self.get_logger().error(f"Error Publishing Real Sensor Data: {str(e)}")
 
     def publish_test_sensor_data(self):
-        """发布测试传感器数据"""
-        # 实现测试传感器数据发布
-        pass
+        """Publish Test Sensor Data"""
+        try:
+            # Generate and Publish Test IMU Data
+            imu_msg = Imu()
+            imu_msg.header.stamp = self.get_clock().now().to_msg()
+            imu_msg.header.frame_id = "imu_link"
+            imu_msg.linear_acceleration.x = np.random.normal(0, 0.1)
+            imu_msg.linear_acceleration.y = np.random.normal(0, 0.1)
+            imu_msg.linear_acceleration.z = 9.81 + np.random.normal(0, 0.1)
+            imu_msg.angular_velocity.x = np.random.normal(0, 0.1)
+            imu_msg.angular_velocity.y = np.random.normal(0, 0.1)
+            imu_msg.angular_velocity.z = np.random.normal(0, 0.1)
+            self.imu_pub.publish(imu_msg)
+
+            # Generate and Publish Test LiDAR Data
+            scan_msg = LaserScan()
+            scan_msg.header.stamp = self.get_clock().now().to_msg()
+            scan_msg.header.frame_id = "laser_link"
+            scan_msg.angle_min = -np.pi
+            scan_msg.angle_max = np.pi
+            scan_msg.angle_increment = np.pi / 180
+            scan_msg.range_min = 0.1
+            scan_msg.range_max = 10.0
+            scan_msg.ranges = [np.random.uniform(0.1, 10.0) for _ in range(360)]
+            self.scan_pub.publish(scan_msg)
+
+            # Generate and Publish Test Camera Image
+            test_image = np.zeros((480, 640, 3), dtype=np.uint8)
+            cv2.circle(test_image, (320, 240), 100, (0, 255, 0), -1)
+            image_msg = self.cv_bridge.cv2_to_imgmsg(test_image, "bgr8")
+            image_msg.header.stamp = self.get_clock().now().to_msg()
+            image_msg.header.frame_id = "camera_link"
+            self.image_pub.publish(image_msg)
+
+            # Process and Publish Test Processed Image
+            processed_image = cv2.GaussianBlur(test_image, (5, 5), 0)
+            processed_msg = self.cv_bridge.cv2_to_imgmsg(processed_image, "bgr8")
+            processed_msg.header.stamp = self.get_clock().now().to_msg()
+            processed_msg.header.frame_id = "camera_link"
+            self.image_processed_pub.publish(processed_msg)
+
+            # Generate and Publish Test Battery State
+            battery_msg = BatteryState()
+            battery_msg.header.stamp = self.get_clock().now().to_msg()
+            battery_msg.voltage = np.random.uniform(11.0, 12.6)
+            battery_msg.percentage = np.random.uniform(0, 100)
+            self.battery_pub.publish(battery_msg)
+
+            # Check Battery Level and Trigger Warning if Low
+            if battery_msg.percentage < 20:  # 20% threshold
+                self.buzzer_pub.publish(Bool(True))
+                self.get_logger().warn("Test Mode: Low Battery Warning!")
+
+        except Exception as e:
+            self.get_logger().error(f"Error Publishing Test Sensor Data: {str(e)}")
 
     def emergency_stop(self):
-        """紧急停止"""
+        """Emergency Stop"""
         with self.lock:
             self.current_speed = 0.0
             self.current_angular = 0.0
@@ -271,73 +402,46 @@ class RosMasterDriver(Node):
                 self.test_interface.set_car_motion(0.0, 0.0, 0.0)
             self.buzzer_pub.publish(Bool(True))
             self.log_operation("emergency_stop", 0.0, "emergency")
-            self.get_logger().info("紧急停止已激活")
+            self.get_logger().info("Emergency Stop Activated")
 
     def set_auto_report_state(self, enable: bool, forever: bool = False):
-        """设置自动数据上报状态"""
+        """Set Auto Data Report State"""
         try:
             self.rm.set_auto_report_state(enable, forever)
-            self.get_logger().info(f"设置自动数据上报: enable={enable}, forever={forever}")
+            self.get_logger().info(f"Set Auto Data Report: enable={enable}, forever={forever}")
         except Exception as e:
-            self.get_logger().error(f"设置自动数据上报失败: {str(e)}")
+            self.get_logger().error(f"Failed to Set Auto Data Report: {str(e)}")
 
     def clear_auto_report_data(self):
-        """清除自动上报的数据缓存"""
+        """Clear Auto Report Data Cache"""
         try:
             self.rm.clear_auto_report_data()
-            self.get_logger().info("清除自动上报数据缓存")
+            self.get_logger().info("Cleared Auto Report Data Cache")
         except Exception as e:
-            self.get_logger().error(f"清除自动上报数据失败: {str(e)}")
-
-    def _init_gpio(self):
-        """初始化GPIO"""
-        try:
-            # 设置GPIO模式为BCM
-            GPIO.setmode(GPIO.BCM)
-            
-            # 设置电机控制引脚为输出
-            GPIO.setup(GpioConfig.MOTOR_LEFT_FRONT, GPIO.OUT)
-            GPIO.setup(GpioConfig.MOTOR_RIGHT_FRONT, GPIO.OUT)
-            GPIO.setup(GpioConfig.MOTOR_LEFT_BACK, GPIO.OUT)
-            GPIO.setup(GpioConfig.MOTOR_RIGHT_BACK, GPIO.OUT)
-            
-            # 设置编码器引脚为输入
-            GPIO.setup(GpioConfig.ENCODER_LEFT_FRONT, GPIO.IN)
-            GPIO.setup(GpioConfig.ENCODER_RIGHT_FRONT, GPIO.IN)
-            GPIO.setup(GpioConfig.ENCODER_LEFT_BACK, GPIO.IN)
-            GPIO.setup(GpioConfig.ENCODER_RIGHT_BACK, GPIO.IN)
-            
-            # 设置其他功能引脚
-            GPIO.setup(GpioConfig.LED_PIN, GPIO.OUT)
-            GPIO.setup(GpioConfig.BUZZER_PIN, GPIO.OUT)
-            
-            self.get_logger().info("GPIO初始化成功")
-        except Exception as e:
-            self.get_logger().error(f"GPIO初始化失败: {str(e)}")
-            raise
+            self.get_logger().error(f"Failed to Clear Auto Report Data: {str(e)}")
 
     def set_motor(self, m1: int, m2: int, m3: int, m4: int):
-        """直接控制四个电机"""
+        """Directly Control Four Motors"""
         try:
             if self.is_real_robot:
-                # 使用GPIO控制电机
+                # Control Motors Using GPIO
                 GPIO.output(GpioConfig.MOTOR_LEFT_FRONT, GPIO.HIGH if m1 > 0 else GPIO.LOW)
                 GPIO.output(GpioConfig.MOTOR_RIGHT_FRONT, GPIO.HIGH if m2 > 0 else GPIO.LOW)
                 GPIO.output(GpioConfig.MOTOR_LEFT_BACK, GPIO.HIGH if m3 > 0 else GPIO.LOW)
                 GPIO.output(GpioConfig.MOTOR_RIGHT_BACK, GPIO.HIGH if m4 > 0 else GPIO.LOW)
             else:
-                # 测试模式使用模拟接口
+                # Use Test Interface in Test Mode
                 self.test_interface.set_motor(m1, m2, m3, m4)
             
-            self.get_logger().info(f"设置电机速度: m1={m1}, m2={m2}, m3={m3}, m4={m4}")
+            self.get_logger().info(f"Set Motor Speed: m1={m1}, m2={m2}, m3={m3}, m4={m4}")
         except Exception as e:
-            self.get_logger().error(f"设置电机速度失败: {str(e)}")
+            self.get_logger().error(f"Failed to Set Motor Speed: {str(e)}")
 
     def get_encoder_data(self):
-        """获取编码器数据"""
+        """Get Encoder Data"""
         try:
             if self.is_real_robot:
-                # 使用GPIO读取编码器数据
+                # Read Encoder Data Using GPIO
                 encoder_data = [
                     GPIO.input(GpioConfig.ENCODER_LEFT_FRONT),
                     GPIO.input(GpioConfig.ENCODER_RIGHT_FRONT),
@@ -345,27 +449,27 @@ class RosMasterDriver(Node):
                     GPIO.input(GpioConfig.ENCODER_RIGHT_BACK)
                 ]
             else:
-                # 测试模式使用模拟数据
+                # Use Test Data in Test Mode
                 encoder_data = self.test_interface.get_encoder_data()
             
             return encoder_data
         except Exception as e:
-            self.get_logger().error(f"获取编码器数据失败: {str(e)}")
+            self.get_logger().error(f"Failed to Get Encoder Data: {str(e)}")
             return [0, 0, 0, 0]
 
     def __del__(self):
-        """清理资源"""
+        """Cleanup Resources"""
         try:
-            # 停止电机
+            # Stop Motors
             if self.is_real_robot:
                 self.rm.set_car_motion(0.0, 0.0, 0.0)
             else:
                 self.test_interface.set_car_motion(0.0, 0.0, 0.0)
             
-            # 清理GPIO
+            # Cleanup GPIO
             GPIO.cleanup()
         except Exception as e:
-            self.get_logger().error(f"清理资源失败: {str(e)}")
+            self.get_logger().error(f"Failed to Cleanup Resources: {str(e)}")
 
 def main(args=None):
     try:
@@ -375,7 +479,7 @@ def main(args=None):
     except KeyboardInterrupt:
         driver.emergency_stop()
     except Exception as e:
-        logging.error(f"驱动程序运行失败: {str(e)}")
+        logging.error(f"Driver Runtime Error: {str(e)}")
     finally:
         driver.destroy_node()
         rclpy.shutdown()
