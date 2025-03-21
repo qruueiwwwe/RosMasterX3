@@ -18,21 +18,31 @@ import sys
 try:
     import Jetson.GPIO as GPIO
     GPIO_AVAILABLE = True
-except (ImportError, RuntimeError) as e:
-    GPIO_AVAILABLE = False
-    print(f"Warning: GPIO library not available: {str(e)}")
-    print("Running in simulation mode...")
+except ImportError:
+    try:
+        import RPi.GPIO as GPIO
+        GPIO_AVAILABLE = True
+    except ImportError:
+        try:
+            import Adafruit_BBIO.GPIO as GPIO
+            GPIO_AVAILABLE = True
+        except ImportError:
+            GPIO_AVAILABLE = False
+            print("Warning: GPIO library not available: The current user does not have permissions set to access the library functionalites. Please configure permissions or use the root user to run this. It is also possible that /dev/gpiochip0 does not exist. Please check if that file is present.")
+            print("Running in simulation mode...")
 
-# Try to import Rosmaster
+# Try to import Rosmaster library
 try:
     from Rosmaster import Rosmaster
     ROSMASTER_AVAILABLE = True
-except ImportError as e:
+except ImportError:
     ROSMASTER_AVAILABLE = False
-    print(f"Warning: Rosmaster library not available: {str(e)}")
+    print("Warning: Rosmaster library not available: No module named 'Rosmaster'")
     print("Running in simulation mode...")
 
-# GPIO Pin Definitions
+# Import mock devices
+from mock_devices import MockIMU, MockLidar, MockCamera, MockBattery
+
 class GpioConfig:
     # Motor Control Pins
     MOTOR_LEFT_FRONT = 17  # Left Front Motor
@@ -54,67 +64,29 @@ class RosMasterDriver(Node):
     def __init__(self):
         super().__init__('rosmaster_driver')
         
-        # Initialize Variables
+        # Initialize variables
         self.cv_bridge = CvBridge()
         self.current_speed = 0.0
         self.current_angular = 0.0
         self.lock = threading.Lock()
         self.is_real_robot = False
-        self.rm = None  # Initialize rm as None
         
-        # Initialize GPIO if available
-        if GPIO_AVAILABLE:
-            try:
-                # Set GPIO Mode to BCM
-                GPIO.setmode(GPIO.BCM)
-                
-                # Set Motor Control Pins as Output
-                GPIO.setup(GpioConfig.MOTOR_LEFT_FRONT, GPIO.OUT)
-                GPIO.setup(GpioConfig.MOTOR_RIGHT_FRONT, GPIO.OUT)
-                GPIO.setup(GpioConfig.MOTOR_LEFT_BACK, GPIO.OUT)
-                GPIO.setup(GpioConfig.MOTOR_RIGHT_BACK, GPIO.OUT)
-                
-                # Set Encoder Pins as Input
-                GPIO.setup(GpioConfig.ENCODER_LEFT_FRONT, GPIO.IN)
-                GPIO.setup(GpioConfig.ENCODER_RIGHT_FRONT, GPIO.IN)
-                GPIO.setup(GpioConfig.ENCODER_LEFT_BACK, GPIO.IN)
-                GPIO.setup(GpioConfig.ENCODER_RIGHT_BACK, GPIO.IN)
-                
-                # Set Other Function Pins
-                GPIO.setup(GpioConfig.LED_PIN, GPIO.OUT)
-                GPIO.setup(GpioConfig.BUZZER_PIN, GPIO.OUT)
-                
-                self.get_logger().info("GPIO Initialization Successful")
-            except Exception as e:
-                self.get_logger().warn(f"GPIO Initialization Failed: {str(e)}")
-                self.get_logger().info("Running in simulation mode...")
-        else:
-            self.get_logger().info("GPIO not available, running in simulation mode...")
+        # Initialize mock devices
+        self.imu = MockIMU()
+        self.lidar = MockLidar()
+        self.camera = MockCamera()
+        self.battery = MockBattery()
         
-        # Try to Initialize Real Robot
-        if ROSMASTER_AVAILABLE:
-            try:
-                self.rm = Rosmaster()
-                self.rm.create_receive_threading()
-                self.is_real_robot = True
-                self.get_logger().info("Successfully Connected to Real Robot")
-            except Exception as e:
-                self.get_logger().warn(f"Unable to Connect to Real Robot: {str(e)}")
-                self.get_logger().info("Switching to Test Mode")
-                self.is_real_robot = False
+        # Start mock devices
+        self.imu.start()
+        self.lidar.start()
+        self.camera.start()
+        self.battery.start()
         
-        # Import Test Interface
-        try:
-            from test_interface import TestInterface
-            self.test_interface = TestInterface()
-        except ImportError as e:
-            self.get_logger().error(f"Unable to Import Test Interface: {str(e)}")
-            raise
-
-        # Log File Path
+        # Log file path
         self.log_file = os.environ.get("LOG_FILE", "rosmaster_operations.log")
         self._init_logging()
-
+        
         # Publishers
         self.imu_pub = self.create_publisher(Imu, '/imu/data', 10)
         self.scan_pub = self.create_publisher(LaserScan, '/scan', 10)
@@ -125,8 +97,7 @@ class RosMasterDriver(Node):
         self.buzzer_pub = self.create_publisher(Bool, '/buzzer_cmd', 10)
         self.encoder_pub = self.create_publisher(Int32MultiArray, '/encoder_data', 10)
         self.robot_state_pub = self.create_publisher(Twist, '/robot_state', 10)
-        self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
-
+        
         # Subscribers
         self.cmd_vel_sub = self.create_subscription(
             Twist,
@@ -140,20 +111,12 @@ class RosMasterDriver(Node):
             self.keyboard_event_callback,
             10
         )
-
-        # Create Timer for Regularly Publishing Sensor Data
+        
+        # Create timers for publishing sensor data
         self.create_timer(0.1, self.publish_sensor_data)  # 10Hz
         self.create_timer(0.05, self.publish_encoder_data)  # 20Hz
         self.create_timer(0.1, self.publish_robot_state)  # 10Hz
-
-        # Start Data Reception Thread if using real robot
-        if self.is_real_robot and self.rm:
-            self.rm.create_receive_threading()
         
-        # Set Auto Data Reporting if using real robot
-        if self.is_real_robot and self.rm:
-            self.set_auto_report_state(True, forever=False)
-
         self.get_logger().info('ROSMASTER Driver Node Started')
 
     def _init_logging(self):
