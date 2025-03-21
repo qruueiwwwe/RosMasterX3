@@ -13,8 +13,24 @@ import json
 import logging
 from datetime import datetime
 import sys
-import Jetson.GPIO as GPIO
-from Rosmaster import Rosmaster
+
+# Try to import GPIO library
+try:
+    import Jetson.GPIO as GPIO
+    GPIO_AVAILABLE = True
+except (ImportError, RuntimeError) as e:
+    GPIO_AVAILABLE = False
+    print(f"Warning: GPIO library not available: {str(e)}")
+    print("Running in simulation mode...")
+
+# Try to import Rosmaster
+try:
+    from Rosmaster import Rosmaster
+    ROSMASTER_AVAILABLE = True
+except ImportError as e:
+    ROSMASTER_AVAILABLE = False
+    print(f"Warning: Rosmaster library not available: {str(e)}")
+    print("Running in simulation mode...")
 
 # GPIO Pin Definitions
 class GpioConfig:
@@ -44,50 +60,56 @@ class RosMasterDriver(Node):
         self.current_angular = 0.0
         self.lock = threading.Lock()
         self.is_real_robot = False
+        self.rm = None  # Initialize rm as None
         
-        # Initialize GPIO
-        try:
-            # Set GPIO Mode to BCM
-            GPIO.setmode(GPIO.BCM)
-            
-            # Set Motor Control Pins as Output
-            GPIO.setup(GpioConfig.MOTOR_LEFT_FRONT, GPIO.OUT)
-            GPIO.setup(GpioConfig.MOTOR_RIGHT_FRONT, GPIO.OUT)
-            GPIO.setup(GpioConfig.MOTOR_LEFT_BACK, GPIO.OUT)
-            GPIO.setup(GpioConfig.MOTOR_RIGHT_BACK, GPIO.OUT)
-            
-            # Set Encoder Pins as Input
-            GPIO.setup(GpioConfig.ENCODER_LEFT_FRONT, GPIO.IN)
-            GPIO.setup(GpioConfig.ENCODER_RIGHT_FRONT, GPIO.IN)
-            GPIO.setup(GpioConfig.ENCODER_LEFT_BACK, GPIO.IN)
-            GPIO.setup(GpioConfig.ENCODER_RIGHT_BACK, GPIO.IN)
-            
-            # Set Other Function Pins
-            GPIO.setup(GpioConfig.LED_PIN, GPIO.OUT)
-            GPIO.setup(GpioConfig.BUZZER_PIN, GPIO.OUT)
-            
-            self.get_logger().info("GPIO Initialization Successful")
-        except Exception as e:
-            self.get_logger().error(f"GPIO Initialization Failed: {str(e)}")
-            raise
+        # Initialize GPIO if available
+        if GPIO_AVAILABLE:
+            try:
+                # Set GPIO Mode to BCM
+                GPIO.setmode(GPIO.BCM)
+                
+                # Set Motor Control Pins as Output
+                GPIO.setup(GpioConfig.MOTOR_LEFT_FRONT, GPIO.OUT)
+                GPIO.setup(GpioConfig.MOTOR_RIGHT_FRONT, GPIO.OUT)
+                GPIO.setup(GpioConfig.MOTOR_LEFT_BACK, GPIO.OUT)
+                GPIO.setup(GpioConfig.MOTOR_RIGHT_BACK, GPIO.OUT)
+                
+                # Set Encoder Pins as Input
+                GPIO.setup(GpioConfig.ENCODER_LEFT_FRONT, GPIO.IN)
+                GPIO.setup(GpioConfig.ENCODER_RIGHT_FRONT, GPIO.IN)
+                GPIO.setup(GpioConfig.ENCODER_LEFT_BACK, GPIO.IN)
+                GPIO.setup(GpioConfig.ENCODER_RIGHT_BACK, GPIO.IN)
+                
+                # Set Other Function Pins
+                GPIO.setup(GpioConfig.LED_PIN, GPIO.OUT)
+                GPIO.setup(GpioConfig.BUZZER_PIN, GPIO.OUT)
+                
+                self.get_logger().info("GPIO Initialization Successful")
+            except Exception as e:
+                self.get_logger().warn(f"GPIO Initialization Failed: {str(e)}")
+                self.get_logger().info("Running in simulation mode...")
+        else:
+            self.get_logger().info("GPIO not available, running in simulation mode...")
         
         # Try to Initialize Real Robot
-        try:
-            self.rm = Rosmaster()
-            self.rm.create_receive_threading()
-            self.is_real_robot = True
-            self.get_logger().info("Successfully Connected to Real Robot")
-        except Exception as e:
-            self.get_logger().warn(f"Unable to Connect to Real Robot: {str(e)}")
-            self.get_logger().info("Switching to Test Mode")
-            self.is_real_robot = False
-            # Import Test Interface
+        if ROSMASTER_AVAILABLE:
             try:
-                from test_interface import TestInterface
-                self.test_interface = TestInterface()
-            except ImportError as e:
-                self.get_logger().error(f"Unable to Import Test Interface: {str(e)}")
-                raise
+                self.rm = Rosmaster()
+                self.rm.create_receive_threading()
+                self.is_real_robot = True
+                self.get_logger().info("Successfully Connected to Real Robot")
+            except Exception as e:
+                self.get_logger().warn(f"Unable to Connect to Real Robot: {str(e)}")
+                self.get_logger().info("Switching to Test Mode")
+                self.is_real_robot = False
+        
+        # Import Test Interface
+        try:
+            from test_interface import TestInterface
+            self.test_interface = TestInterface()
+        except ImportError as e:
+            self.get_logger().error(f"Unable to Import Test Interface: {str(e)}")
+            raise
 
         # Log File Path
         self.log_file = os.environ.get("LOG_FILE", "rosmaster_operations.log")
@@ -124,11 +146,13 @@ class RosMasterDriver(Node):
         self.create_timer(0.05, self.publish_encoder_data)  # 20Hz
         self.create_timer(0.1, self.publish_robot_state)  # 10Hz
 
-        # Start Data Reception Thread
-        self.rm.create_receive_threading()
+        # Start Data Reception Thread if using real robot
+        if self.is_real_robot and self.rm:
+            self.rm.create_receive_threading()
         
-        # Set Auto Data Reporting
-        self.set_auto_report_state(True, forever=False)
+        # Set Auto Data Reporting if using real robot
+        if self.is_real_robot and self.rm:
+            self.set_auto_report_state(True, forever=False)
 
         self.get_logger().info('ROSMASTER Driver Node Started')
 
@@ -385,7 +409,7 @@ class RosMasterDriver(Node):
 
             # Check Battery Level and Trigger Warning if Low
             if battery_msg.percentage < 20:  # 20% threshold
-                self.buzzer_pub.publish(Bool(True))
+                self.buzzer_pub.publish(Bool(data=True))
                 self.get_logger().warn("Test Mode: Low Battery Warning!")
 
         except Exception as e:
@@ -407,23 +431,25 @@ class RosMasterDriver(Node):
     def set_auto_report_state(self, enable: bool, forever: bool = False):
         """Set Auto Data Report State"""
         try:
-            self.rm.set_auto_report_state(enable, forever)
-            self.get_logger().info(f"Set Auto Data Report: enable={enable}, forever={forever}")
+            if self.rm:
+                self.rm.set_auto_report_state(enable, forever)
+                self.get_logger().info(f"Set Auto Data Report: enable={enable}, forever={forever}")
         except Exception as e:
             self.get_logger().error(f"Failed to Set Auto Data Report: {str(e)}")
 
     def clear_auto_report_data(self):
         """Clear Auto Report Data Cache"""
         try:
-            self.rm.clear_auto_report_data()
-            self.get_logger().info("Cleared Auto Report Data Cache")
+            if self.rm:
+                self.rm.clear_auto_report_data()
+                self.get_logger().info("Cleared Auto Report Data Cache")
         except Exception as e:
             self.get_logger().error(f"Failed to Clear Auto Report Data: {str(e)}")
 
     def set_motor(self, m1: int, m2: int, m3: int, m4: int):
         """Directly Control Four Motors"""
         try:
-            if self.is_real_robot:
+            if self.is_real_robot and GPIO_AVAILABLE:
                 # Control Motors Using GPIO
                 GPIO.output(GpioConfig.MOTOR_LEFT_FRONT, GPIO.HIGH if m1 > 0 else GPIO.LOW)
                 GPIO.output(GpioConfig.MOTOR_RIGHT_FRONT, GPIO.HIGH if m2 > 0 else GPIO.LOW)
@@ -440,7 +466,7 @@ class RosMasterDriver(Node):
     def get_encoder_data(self):
         """Get Encoder Data"""
         try:
-            if self.is_real_robot:
+            if self.is_real_robot and GPIO_AVAILABLE:
                 # Read Encoder Data Using GPIO
                 encoder_data = [
                     GPIO.input(GpioConfig.ENCODER_LEFT_FRONT),
@@ -466,22 +492,26 @@ class RosMasterDriver(Node):
             else:
                 self.test_interface.set_car_motion(0.0, 0.0, 0.0)
             
-            # Cleanup GPIO
-            GPIO.cleanup()
+            # Cleanup GPIO if available
+            if GPIO_AVAILABLE:
+                GPIO.cleanup()
         except Exception as e:
             self.get_logger().error(f"Failed to Cleanup Resources: {str(e)}")
 
 def main(args=None):
+    driver = None
     try:
         rclpy.init(args=args)
         driver = RosMasterDriver()
         rclpy.spin(driver)
     except KeyboardInterrupt:
-        driver.emergency_stop()
+        if driver:
+            driver.emergency_stop()
     except Exception as e:
         logging.error(f"Driver Runtime Error: {str(e)}")
     finally:
-        driver.destroy_node()
+        if driver:
+            driver.destroy_node()
         rclpy.shutdown()
 
 if __name__ == '__main__':
