@@ -19,13 +19,12 @@ setup(
     zip_safe=True,
     maintainer='root',
     maintainer_email='root@todo.todo',
-    description='TODO: Package description',
+    description='ROS2 driver for RosMaster robot',
     license='TODO: License declaration',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'rosmaster_driver = rosmaster_driver_ros2.rosmaster_driver_ros2:main',
-            'test_node = rosmaster_driver_ros2.test_node:main'
+            'rosmaster_driver = rosmaster_driver_ros2.rosmaster_driver_ros2:main'
         ],
     },
 ) 
