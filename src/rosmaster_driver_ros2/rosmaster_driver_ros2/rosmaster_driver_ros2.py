@@ -62,6 +62,12 @@ class RosMasterDriver(Node):
         self.create_timer(0.05, self.publish_encoder_data)  # 20Hz
         self.create_timer(0.1, self.publish_robot_state)  # 10Hz
 
+        # 启动数据接收线程
+        self.rm.create_receive_threading()
+        
+        # 设置自动数据上报
+        self.set_auto_report_state(True, forever=False)
+
         self.get_logger().info('ROSMASTER驱动节点已启动')
 
     def _init_logging(self):
@@ -94,23 +100,18 @@ class RosMasterDriver(Node):
                 v_y = msg.linear.y
                 v_z = msg.angular.z
                 
-                # 限制速度范围
-                v_x = max(min(v_x, 1.0), -1.0)
-                v_y = max(min(v_y, 1.0), -1.0)
-                v_z = max(min(v_z, 5.0), -5.0)
+                # 速度转换和限制
+                speed_x = max(min(v_x / 10.0, 1.0), -1.0)
+                speed_y = max(min(v_y / 10.0, 1.0), -1.0)
+                speed_z = max(min(v_z / 10.0, 5.0), -5.0)
                 
-                # 更新状态
-                self.current_speed = v_x
-                self.current_angular = v_z
+                # 调用Rosmaster库的set_car_motion函数
+                self.rm.set_car_motion(speed_x, speed_y, speed_z)
                 
-                if self.is_test_mode:
-                    self.test_interface.set_car_motion(v_x, v_y, v_z)
-                else:
-                    # TODO: 实际硬件控制代码
-                    pass
-                
-                self.get_logger().info(f"收到cmd_vel: v_x={v_x}, v_y={v_y}, v_z={v_z}")
-                self.log_operation("cmd_vel", v_x, "motion")
+                self.current_speed = speed_x
+                self.current_angular = speed_z
+                self.get_logger().info(f"收到cmd_vel: v_x={speed_x}, v_y={speed_y}, v_z={speed_z}")
+                self.log_operation("cmd_vel", speed_x, "motion")
         except Exception as e:
             self.get_logger().error(f"cmd_vel_callback错误: {str(e)}")
             self.log_operation("cmd_vel_error", self.current_speed, f"Error: {str(e)}")
@@ -147,11 +148,8 @@ class RosMasterDriver(Node):
     def publish_encoder_data(self):
         """发布编码器数据"""
         try:
-            if self.is_test_mode:
-                encoder_data = self.test_interface.get_encoder_data()
-            else:
-                # TODO: 实际硬件获取编码器数据
-                encoder_data = [0, 0, 0, 0]
+            # 获取编码器数据
+            encoder_data = self.rm.get_encoder_data()
             
             # 创建编码器消息
             encoder_msg = Int32MultiArray()
@@ -159,6 +157,9 @@ class RosMasterDriver(Node):
             
             # 发布消息
             self.encoder_pub.publish(encoder_msg)
+            
+            # 清除数据缓存
+            self.clear_auto_report_data()
         except Exception as e:
             self.get_logger().error(f"发布编码器数据错误: {str(e)}")
 
@@ -275,6 +276,40 @@ class RosMasterDriver(Node):
             self.buzzer_pub.publish(Bool(True))  # 触发蜂鸣器
             self.log_operation("emergency_stop", 0.0, "emergency")
             self.get_logger().info("紧急停止已激活")
+
+    def set_auto_report_state(self, enable: bool, forever: bool = False):
+        """设置自动数据上报状态"""
+        try:
+            self.rm.set_auto_report_state(enable, forever)
+            self.get_logger().info(f"设置自动数据上报: enable={enable}, forever={forever}")
+        except Exception as e:
+            self.get_logger().error(f"设置自动数据上报失败: {str(e)}")
+
+    def clear_auto_report_data(self):
+        """清除自动上报的数据缓存"""
+        try:
+            self.rm.clear_auto_report_data()
+            self.get_logger().info("清除自动上报数据缓存")
+        except Exception as e:
+            self.get_logger().error(f"清除自动上报数据失败: {str(e)}")
+
+    def set_motor(self, m1: int, m2: int, m3: int, m4: int):
+        """直接控制四个电机"""
+        try:
+            self.rm.set_motor(m1, m2, m3, m4)
+            self.get_logger().info(f"设置电机速度: m1={m1}, m2={m2}, m3={m3}, m4={m4}")
+        except Exception as e:
+            self.get_logger().error(f"设置电机速度失败: {str(e)}")
+
+    def get_motion_data(self):
+        """获取运动数据"""
+        try:
+            v_x, v_y, v_z = self.rm.get_motion_data()
+            self.get_logger().info(f"获取运动数据: v_x={v_x}, v_y={v_y}, v_z={v_z}")
+            return v_x, v_y, v_z
+        except Exception as e:
+            self.get_logger().error(f"获取运动数据失败: {str(e)}")
+            return 0.0, 0.0, 0.0
 
 def main(args=None):
     rclpy.init(args=args)
