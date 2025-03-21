@@ -14,27 +14,39 @@ import logging
 from datetime import datetime
 import sys
 
+# Check if running in Docker
+def is_running_in_docker():
+    return os.path.exists('/.dockerenv')
+
 # Try to import GPIO library
-try:
-    import Jetson.GPIO as GPIO
-    GPIO_AVAILABLE = True
-except ImportError:
+GPIO_AVAILABLE = False
+if not is_running_in_docker():
     try:
-        import RPi.GPIO as GPIO
+        import Jetson.GPIO as GPIO
         GPIO_AVAILABLE = True
+        print("Successfully imported Jetson.GPIO")
     except ImportError:
         try:
-            import Adafruit_BBIO.GPIO as GPIO
+            import RPi.GPIO as GPIO
             GPIO_AVAILABLE = True
+            print("Successfully imported RPi.GPIO")
         except ImportError:
-            GPIO_AVAILABLE = False
-            print("Warning: GPIO library not available: The current user does not have permissions set to access the library functionalites. Please configure permissions or use the root user to run this. It is also possible that /dev/gpiochip0 does not exist. Please check if that file is present.")
-            print("Running in simulation mode...")
+            try:
+                import Adafruit_BBIO.GPIO as GPIO
+                GPIO_AVAILABLE = True
+                print("Successfully imported Adafruit_BBIO.GPIO")
+            except ImportError:
+                print("Warning: No GPIO library available")
+                print("Running in simulation mode...")
+else:
+    print("Warning: Running in Docker container, GPIO access is not available")
+    print("Running in simulation mode...")
 
 # Try to import Rosmaster library
 try:
     from Rosmaster import Rosmaster
     ROSMASTER_AVAILABLE = True
+    print("Successfully imported Rosmaster")
 except ImportError:
     ROSMASTER_AVAILABLE = False
     print("Warning: Rosmaster library not available: No module named 'Rosmaster'")
@@ -97,6 +109,7 @@ class RosMasterDriver(Node):
         self.buzzer_pub = self.create_publisher(Bool, '/buzzer_cmd', 10)
         self.encoder_pub = self.create_publisher(Int32MultiArray, '/encoder_data', 10)
         self.robot_state_pub = self.create_publisher(Twist, '/robot_state', 10)
+        self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
         
         # Subscribers
         self.cmd_vel_sub = self.create_subscription(
@@ -117,7 +130,7 @@ class RosMasterDriver(Node):
         self.create_timer(0.05, self.publish_encoder_data)  # 20Hz
         self.create_timer(0.1, self.publish_robot_state)  # 10Hz
         
-        self.get_logger().info('ROSMASTER Driver Node Started')
+        self.get_logger().info('ROSMASTER Driver Node Started in Simulation Mode')
 
     def _init_logging(self):
         """Initialize Logging"""
