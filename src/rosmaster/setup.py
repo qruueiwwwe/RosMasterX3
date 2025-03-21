@@ -2,7 +2,7 @@ from setuptools import setup
 import os
 from glob import glob
 
-package_name = 'rosmaster_driver_ros2'
+package_name = 'test'
 
 setup(
     name=package_name,
@@ -12,19 +12,20 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        (os.path.join('share', package_name), glob('launch/*.launch.py')),
-        (os.path.join('share', package_name), glob('config/*.yaml')),
+        (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py'))
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='root',
-    maintainer_email='root@todo.todo',
-    description='ROS2 driver for RosMaster robot',
-    license='TODO: License declaration',
+    maintainer='user',
+    maintainer_email='user@todo.todo',
+    description='测试移动控制包',
+    license='TODO',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'rosmaster_driver = rosmaster_driver_ros2.rosmaster_driver_ros2:main'
+            'move_test = test.move_test:main',
+            'laser_processor = test.laser_processor:main',
+            'depth_processor = test.depth_processor:main',
         ],
     },
 ) 
