@@ -2,7 +2,7 @@ from setuptools import setup
 import os
 from glob import glob
 
-package_name = 'test'
+package_name = 'driver_node_ros2'
 
 setup(
     name=package_name,
@@ -12,20 +12,19 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py'))
+        (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
+        (os.path.join('share', package_name, 'config'), glob('config/*.yaml'))
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='user',
-    maintainer_email='user@todo.todo',
-    description='测试移动控制包',
-    license='TODO',
+    maintainer='your_name',
+    maintainer_email='your_email@example.com',
+    description='Driver node for your device',
+    license='TODO: License declaration',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'move_test = test.move_test:main',
-            'laser_processor = test.laser_processor:main',
-            'depth_processor = test.depth_processor:main',
+            'driver_node_ros2 = driver_node_ros2.driver_node_ros2:main'
         ],
     },
-) 
+)

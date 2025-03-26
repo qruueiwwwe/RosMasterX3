@@ -1,0 +1,31 @@
+broker:
+  host: 192.168.31.101
+  port: 1883
+bridge:
+  ros2mqtt:
+  - ros_topic: /cmd_vel
+    mqtt_topic: cmd_vel
+  - ros_topic: /turtle1/cmd_vel
+    mqtt_topic: turtle1/cmd_vel
+
+  mqtt2ros:
+  - mqtt_topic: PowerVoltage
+    ros_topic: /PowerVoltage
+
+  - mqtt_topic: imu
+    ros_topic: /imu
+
+  - mqtt_topic: odom
+    ros_topic: /odom
+
+  - mqtt_topic: turtle1/pose
+    ros_topic: /turtle1/pose
+
+  - mqtt_topic: camera/rgb/image_raw/compressed
+    ros_topic: /camera/rgb/image_raw/compressed
+  - mqtt_topic: imu_low    
+    ros_topic: /imu_low
+  - mqtt_topic: scan 
+    ros_topic: /scan
+          
+    

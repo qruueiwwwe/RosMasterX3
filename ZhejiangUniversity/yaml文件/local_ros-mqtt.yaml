@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ros-mqqt
+  namespace: devices
+spec:
+  serviceName: "ros-mqtt-service"
+  replicas: 1
+  selector:
+    matchLabels:
+      name: ros-mqqt
+  template:
+    metadata:
+      labels:
+        name: ros-mqqt
+    spec:
+      hostNetwork: true
+      containers:
+      - name: ros-mqqt
+        image: 192.168.31.115:5000/arm/nesc/ros-to-mqtt:1.0
+      volumes:
+      - name: ros-mqqt-config
+        configMap:
+          name: ros-mqqt-configmap
+      nodeSelector:
+        cpu: arm

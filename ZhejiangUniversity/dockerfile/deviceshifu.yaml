@@ -1,0 +1,39 @@
+apiVersion: shifu.dev/v1alpha1
+kind: DeviceShifu
+metadata:
+  name: ros-robot
+spec:
+  sku: "ROS-ROBOT-001"
+  connection: Ethernet
+  address: "http://ros-robot:8080"
+  protocol: HTTP
+  telemetries:
+    power_voltage:
+      properties:
+        source: "PowerVoltage"
+        dataType: "string"
+    imu_data:
+      properties:
+        source: "imu"
+        dataType: "string"
+    odometry:
+      properties:
+        source: "odom"
+        dataType: "string"
+    scan_data:
+      properties:
+        source: "scan"
+        dataType: "string"
+    camera_image:
+      properties:
+        source: "camera/rgb/image_raw/compressed"
+        dataType: "string"
+  instructions:
+    cmd_vel:
+      properties:
+        source: "cmd_vel"
+        dataType: "string"
+    turtle_cmd_vel:
+      properties:
+        source: "turtle1/cmd_vel"
+        dataType: "string" 

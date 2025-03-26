@@ -1,0 +1,25 @@
+broker:
+  host: localhost
+  port: 1883
+bridge:
+  ros2mqtt:
+  - ros_topic: /PowerVoltage
+    mqtt_topic: PowerVoltage
+  - ros_topic: /imu
+    mqtt_topic: imu
+  - ros_topic: /imu_low
+    mqtt_topic: imu_low
+  - ros_topic: /odom
+    mqtt_topic: odom
+  - ros_topic: /turtle1/pose
+    mqtt_topic: turtle1/pose
+  - ros_topic: /scan
+    mqtt_topic: scan    
+  - ros_topic: /camera/rgb/image_raw/compressed
+    mqtt_topic: camera/rgb/image_raw/compressed
+
+  mqtt2ros:
+  - mqtt_topic: cmd_vel
+    ros_topic: /cmd_vel
+  - mqtt_topic: turtle1/cmd_vel
+    ros_topic: /turtle1/cmd_vel

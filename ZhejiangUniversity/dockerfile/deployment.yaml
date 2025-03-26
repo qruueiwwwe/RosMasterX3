@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ros-robot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ros-robot
+  template:
+    metadata:
+      labels:
+        app: ros-robot
+    spec:
+      containers:
+      - name: ros-robot
+        image: ros-robot-shifu:latest
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: ros-ws
+          mountPath: /catkin_ws
+      volumes:
+      - name: ros-ws
+        hostPath:
+          path: /path/to/your/catkin_ws
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ros-robot-service
+spec:
+  selector:
+    app: ros-robot
+  ports:
+  - port: 8080
+    targetPort: 8080
+  type: ClusterIP 
