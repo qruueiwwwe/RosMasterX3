@@ -12,8 +12,8 @@ def generate_launch_description():
     # 声明配置参数
     config_arg = DeclareLaunchArgument(
         'config_file',
-        default_value=os.path.join(package_share_directory, 'config', 'deviceshifu_config.yaml'),
-        description='DeviceShifu配置文件路径'
+        default_value=os.path.join(package_share_directory, 'config', 'deviceshifu_params.yaml'),
+        description='DeviceShifu参数文件路径'
     )
 
     # 创建节点

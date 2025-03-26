@@ -49,24 +49,37 @@ class DeviceShifuDriver(Node):
 
     def init_parameters(self):
         """初始化参数"""
-        device_props = self.config['device']['properties']
-        for key, value in device_props.items():
-            self.declare_parameter(key, value)
-            setattr(self, key, self.get_parameter(key).value)
+        # 声明参数
+        self.declare_parameter('linear_speed', 0.5)
+        self.declare_parameter('angular_speed', 0.2)
+        self.declare_parameter('camera_fps', 30)
+        self.declare_parameter('max_retry_count', 3)
+        self.declare_parameter('retry_delay', 0.1)
+        self.declare_parameter('min_fps', 10)
+        self.declare_parameter('max_fps', 30)
+        
+        # 获取参数值
+        self.linear_speed = self.get_parameter('linear_speed').value
+        self.angular_speed = self.get_parameter('angular_speed').value
+        self.camera_fps = self.get_parameter('camera_fps').value
+        self.max_retry_count = self.get_parameter('max_retry_count').value
+        self.retry_delay = self.get_parameter('retry_delay').value
+        self.min_fps = self.get_parameter('min_fps').value
+        self.max_fps = self.get_parameter('max_fps').value
 
     def init_publishers_and_subscribers(self):
         """初始化发布者和订阅者"""
-        for topic in self.config['communication']['topics']:
-            topic_name = topic['name']
-            topic_type = topic['type']
-            
-            if topic['direction'] == 'publish':
-                setattr(self, f'{topic_name}_pub', 
-                       self.create_publisher(eval(topic_type), topic_name, 10))
-            else:
-                setattr(self, f'{topic_name}_sub',
-                       self.create_subscription(eval(topic_type), topic_name,
-                                              getattr(self, f'{topic_name}_callback'), 10))
+        # 创建发布者
+        self.cmd_vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
+        self.image_pub = self.create_publisher(Image, 'camera/image', 10)
+        
+        # 创建订阅者
+        self.command_sub = self.create_subscription(
+            Int32,
+            'remote_command',
+            self.remote_command_callback,
+            10
+        )
 
     def init_device(self):
         """初始化设备"""
@@ -173,30 +186,31 @@ class DeviceShifuDriver(Node):
         """处理远程控制命令"""
         cmd = Twist()
         
-        # 根据DeviceShifu命令映射处理命令
-        for cmd_name, cmd_config in self.config['commands'].items():
-            if msg.data == cmd_config['value']:
-                if cmd_name == 'stop':
-                    cmd.linear.x = 0.0
-                    cmd.angular.z = 0.0
-                elif cmd_name == 'forward':
-                    cmd.linear.x = self.linear_speed
-                    cmd.angular.z = 0.0
-                elif cmd_name == 'backward':
-                    cmd.linear.x = -self.linear_speed
-                    cmd.angular.z = 0.0
-                elif cmd_name == 'turn_left':
-                    cmd.linear.x = 0.0
-                    cmd.angular.z = self.angular_speed
-                elif cmd_name == 'turn_right':
-                    cmd.linear.x = 0.0
-                    cmd.angular.z = -self.angular_speed
-                
-                self.get_logger().info(f'执行{cmd_config["description"]}命令')
-                self.cmd_vel_pub.publish(cmd)
-                return
-        
-        self.get_logger().warn(f'未知命令: {msg.data}')
+        if msg.data == 0:    # 停止
+            cmd.linear.x = 0.0
+            cmd.angular.z = 0.0
+            self.get_logger().info('执行停止命令')
+        elif msg.data == 1:  # 前进
+            cmd.linear.x = self.linear_speed
+            cmd.angular.z = 0.0
+            self.get_logger().info('执行前进命令')
+        elif msg.data == 2:  # 后退
+            cmd.linear.x = -self.linear_speed
+            cmd.angular.z = 0.0
+            self.get_logger().info('执行后退命令')
+        elif msg.data == 3:  # 左转
+            cmd.linear.x = 0.0
+            cmd.angular.z = self.angular_speed
+            self.get_logger().info('执行左转命令')
+        elif msg.data == 4:  # 右转
+            cmd.linear.x = 0.0
+            cmd.angular.z = -self.angular_speed
+            self.get_logger().info('执行右转命令')
+        else:
+            self.get_logger().warn(f'未知命令: {msg.data}')
+            return
+            
+        self.cmd_vel_pub.publish(cmd)
 
     def destroy_node(self):
         """清理资源"""

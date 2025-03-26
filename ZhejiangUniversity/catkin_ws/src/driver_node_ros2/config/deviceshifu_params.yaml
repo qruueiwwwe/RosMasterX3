@@ -1,0 +1,10 @@
+/**:
+  ros__parameters:
+    # 设备属性
+    linear_speed: 0.5
+    angular_speed: 0.2
+    camera_fps: 30
+    max_retry_count: 3
+    retry_delay: 0.1
+    min_fps: 10
+    max_fps: 30 
