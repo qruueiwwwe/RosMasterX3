@@ -1,0 +1,56 @@
+name: deviceshifu-ros2-driver
+version: 0.0.1
+description: ROS2 driver for DeviceShifu
+protocol: ros2
+
+# 设备配置
+device:
+  name: deviceshifu_robot
+  type: robot
+  properties:
+    linear_speed: 0.5
+    angular_speed: 0.2
+    camera_fps: 30
+    max_retry_count: 3
+    retry_delay: 0.1
+    min_fps: 10
+    max_fps: 30
+
+# 通信配置
+communication:
+  topics:
+    - name: cmd_vel
+      type: geometry_msgs/Twist
+      direction: publish
+      description: 速度控制命令
+    - name: camera/image
+      type: sensor_msgs/Image
+      direction: publish
+      description: 摄像头图像
+    - name: remote_command
+      type: std_msgs/Int32
+      direction: subscribe
+      description: 远程控制命令
+
+# 命令映射
+commands:
+  stop:
+    topic: remote_command
+    value: 0
+    description: 停止
+  forward:
+    topic: remote_command
+    value: 1
+    description: 前进
+  backward:
+    topic: remote_command
+    value: 2
+    description: 后退
+  turn_left:
+    topic: remote_command
+    value: 3
+    description: 左转
+  turn_right:
+    topic: remote_command
+    value: 4
+    description: 右转 
