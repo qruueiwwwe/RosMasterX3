@@ -13,6 +13,7 @@ import time
 from typing import Optional, Tuple
 import yaml
 import os
+from ament_index_python.packages import get_package_share_directory
 
 class DeviceShifuDriver(Node):
     def __init__(self):
@@ -34,10 +35,14 @@ class DeviceShifuDriver(Node):
 
     def load_config(self):
         """加载DeviceShifu配置文件"""
-        config_path = os.path.join(os.path.dirname(__file__), '../config/deviceshifu_config.yaml')
         try:
+            # 获取包的共享目录
+            package_share_directory = get_package_share_directory('driver_node_ros2')
+            config_path = os.path.join(package_share_directory, 'config', 'deviceshifu_config.yaml')
+            
             with open(config_path, 'r', encoding='utf-8') as f:
                 self.config = yaml.safe_load(f)
+            self.get_logger().info(f'成功加载配置文件: {config_path}')
         except Exception as e:
             self.get_logger().error(f'加载配置文件失败: {str(e)}')
             raise
