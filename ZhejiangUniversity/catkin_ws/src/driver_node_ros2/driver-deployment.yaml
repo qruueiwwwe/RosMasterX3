@@ -1,16 +1,48 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: driver-config
+data:
+  deviceshifu_config.yaml: |
+    deviceShifu:
+      name: "wheeltec_robot"
+      type: "ros2"
+      properties:
+        ros2:
+          namespace: "/wheeltec_robot"
+          topics:
+            - name: "cmd_vel"
+              type: "geometry_msgs/Twist"
+            - name: "camera/image"
+              type: "sensor_msgs/Image"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mqtt-secret
+type: Opaque
+data:
+  mqtt-username: d2hlZWx0ZWM=        # wheeltec的base64编码
+  mqtt-password: ZG9uZ2d1YW4=        # dongguan的base64编码
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: driver-node
 spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: driver-node
   template:
+    metadata:
+      labels:
+        app: driver-node
     spec:
       containers:
       - name: driver-node
         image: 192.168.31.115:5000/arm/nesc/driver-node:1.0
-        imagePullPolicy: IfNotPresent  # 推荐策略
-        command: ["/bin/bash", "-c"]
-        args: ["source /opt/ros/foxy/setup.bash && ros2 run driver_node_ros2 driver_node.py"]
+        imagePullPolicy: Always
         env:
         - name: ROS_DOMAIN_ID
           value: "0"
@@ -30,6 +62,18 @@ spec:
               key: mqtt-password
         - name: DEVICE_ID
           value: "device001"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        # volumeMounts:
+        # - name: camera
+        #   mountPath: /dev/video0
+        - name: config
+          mountPath: /opt/ros/foxy/share/driver_node_ros2/config
         livenessProbe:
           exec:
             command:
@@ -37,13 +81,34 @@ spec:
             - node
             - info
             - /deviceshifu_driver
-          initialDelaySeconds: 15
-          timeoutSeconds: 5
+          initialDelaySeconds: 5
+          periodSeconds: 10
         readinessProbe:
           exec:
             command:
             - ros2
             - topic
             - list
-          initialDelaySeconds: 15
-          timeoutSeconds: 5
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      # volumes:
+      # - name: camera
+      #   hostPath:
+      #     path: /dev/video0
+      - name: config
+        configMap:
+          name: driver-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: driver-node-service
+spec:
+  selector:
+    app: driver-node
+  ports:
+  - port: 1883
+    targetPort: 1883
+    protocol: TCP
+    name: mqtt
+  type: ClusterIP
