@@ -75,18 +75,17 @@ spec:
         livenessProbe:
           exec:
             command:
-            - ros2
-            - node
-            - info
-            - /deviceshifu_driver
+            - /bin/bash
+            - -c
+            - "source /opt/ros/foxy/setup.bash && ros2 node info /deviceshifu_driver"
           initialDelaySeconds: 5
           periodSeconds: 10
         readinessProbe:
           exec:
             command:
-            - ros2
-            - topic
-            - list
+            - /bin/bash
+            - -c
+            - "source /opt/ros/foxy/setup.bash && ros2 topic list"
           initialDelaySeconds: 5
           periodSeconds: 10
       volumes:

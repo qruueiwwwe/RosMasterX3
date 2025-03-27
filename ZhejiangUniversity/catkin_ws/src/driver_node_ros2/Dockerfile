@@ -25,4 +25,4 @@ ENV ROS_DOMAIN_ID=0
 ENV PYTHONPATH=/opt/ros/foxy/lib/python3.8/site-packages:${PYTHONPATH:-}
 
 # 设置入口点
-ENTRYPOINT ["ros2", "launch", "driver_node_ros2", "deviceshifu_driver.launch.py"]
+ENTRYPOINT ["/bin/bash", "-c", "source /opt/ros/foxy/setup.bash && ros2 launch driver_node_ros2 deviceshifu_driver.launch.py"]
