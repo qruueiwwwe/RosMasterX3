@@ -14,6 +14,8 @@ from typing import Optional, Tuple
 import yaml
 import os
 from ament_index_python.packages import get_package_share_directory
+import paho.mqtt.client as mqtt
+import json
 
 class DeviceShifuDriver(Node):
     def __init__(self):
@@ -24,6 +26,23 @@ class DeviceShifuDriver(Node):
         
         # 初始化参数
         self.init_parameters()
+        
+        # 添加MQTT配置参数
+        self.declare_parameter('mqtt_broker', 'mosquitto')
+        self.declare_parameter('mqtt_port', 1883)
+        self.declare_parameter('mqtt_username', '')
+        self.declare_parameter('mqtt_password', '')
+        self.declare_parameter('device_id', 'device001')
+        
+        # 获取MQTT参数
+        self.mqtt_broker = self.get_parameter('mqtt_broker').value
+        self.mqtt_port = self.get_parameter('mqtt_port').value
+        self.mqtt_username = self.get_parameter('mqtt_username').value
+        self.mqtt_password = self.get_parameter('mqtt_password').value
+        self.device_id = self.get_parameter('device_id').value
+        
+        # 初始化MQTT客户端
+        self.init_mqtt_client()
         
         # 创建发布者和订阅者
         self.init_publishers_and_subscribers()
@@ -143,44 +162,61 @@ class DeviceShifuDriver(Node):
         image[:] = [187, 197, 57]  # BGR格式的 #39c5bb
         return image
 
+    def init_mqtt_client(self):
+        """初始化MQTT客户端"""
+        self.mqtt_client = mqtt.Client()
+        if self.mqtt_username and self.mqtt_password:
+            self.mqtt_client.username_pw_set(self.mqtt_username, self.mqtt_password)
+        
+        self.mqtt_client.on_connect = self.on_mqtt_connect
+        self.mqtt_client.on_message = self.on_mqtt_message
+        
+        try:
+            self.mqtt_client.connect(self.mqtt_broker, self.mqtt_port)
+            self.mqtt_client.loop_start()
+            self.get_logger().info('MQTT客户端连接成功')
+        except Exception as e:
+            self.get_logger().error(f'MQTT连接失败: {str(e)}')
+
+    def on_mqtt_connect(self, client, userdata, flags, rc):
+        """MQTT连接回调"""
+        if rc == 0:
+            self.get_logger().info('MQTT连接成功')
+            # 订阅控制命令主题
+            self.mqtt_client.subscribe(f'device/{self.device_id}/command')
+        else:
+            self.get_logger().error(f'MQTT连接失败，错误码: {rc}')
+
+    def on_mqtt_message(self, client, userdata, msg):
+        """MQTT消息回调"""
+        try:
+            command = json.loads(msg.payload.decode())
+            # 将MQTT命令转换为ROS消息
+            ros_msg = Int32()
+            ros_msg.data = command.get('command', 0)
+            self.remote_command_callback(ros_msg)
+        except Exception as e:
+            self.get_logger().error(f'处理MQTT消息失败: {str(e)}')
+
     def publish_image(self):
-        """发布图像数据，添加重试机制和动态帧率控制"""
-        # 捕获图像
+        """发布图像数据到MQTT"""
         frame = self.capture_image()
         if frame is None:
-            self.get_logger().error('无法获取图像')
             return
-
-        # 尝试发布图像
-        retry_count = 0
-        while retry_count < self.max_retry_count:
-            try:
-                msg = self.bridge.cv2_to_imgmsg(frame, encoding='bgr8')
-                msg.header.stamp = self.get_clock().now().to_msg()
-                msg.header.frame_id = "camera_frame"
-                self.image_pub.publish(msg)
-                break
-            except Exception as e:
-                retry_count += 1
-                self.get_logger().error(f'图像发布失败 (尝试 {retry_count}/{self.max_retry_count}): {str(e)}')
-                if retry_count < self.max_retry_count:
-                    time.sleep(self.retry_delay)
-
-        # 更新性能监控
-        self.frame_count += 1
-        current_time = time.time()
-        if current_time - self.last_publish_time >= self.fps_update_interval:
-            current_fps = self.frame_count / (current_time - self.last_publish_time)
-            self.frame_count = 0
-            self.last_publish_time = current_time
             
-            # 动态调整帧率
-            if current_fps < self.min_fps:
-                self.camera_fps = max(self.min_fps, self.camera_fps - 1)
-                self.get_logger().info(f'降低帧率到: {self.camera_fps}')
-            elif current_fps > self.max_fps:
-                self.camera_fps = min(self.max_fps, self.camera_fps + 1)
-                self.get_logger().info(f'提高帧率到: {self.camera_fps}')
+        try:
+            # 将图像转换为JPEG格式
+            _, img_encoded = cv2.imencode('.jpg', frame)
+            img_bytes = img_encoded.tobytes()
+            
+            # 发布到MQTT
+            self.mqtt_client.publish(
+                f'device/{self.device_id}/image',
+                img_bytes,
+                qos=1
+            )
+        except Exception as e:
+            self.get_logger().error(f'发布图像到MQTT失败: {str(e)}')
 
     def remote_command_callback(self, msg):
         """处理远程控制命令"""
