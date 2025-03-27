@@ -10,7 +10,7 @@ def generate_launch_description():
     # 创建节点
     driver_node = Node(
         package='driver_node_ros2',
-        executable='driver_node',  # 这里需要修改
+        executable='driver_node.py',  # 修改这里，使用Python文件
         name='driver_node',
         output='screen',
         parameters=[config_file]
