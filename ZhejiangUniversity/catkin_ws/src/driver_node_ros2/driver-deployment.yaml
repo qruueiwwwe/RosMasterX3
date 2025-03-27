@@ -42,7 +42,7 @@ spec:
       containers:
       - name: driver-node
         image: 192.168.31.115:5000/arm/nesc/driver-node:1.0
-        imagePullPolicy: Always
+        imagePullPolicy: Never
         env:
         - name: ROS_DOMAIN_ID
           value: "0"
