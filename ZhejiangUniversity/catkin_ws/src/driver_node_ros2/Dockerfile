@@ -19,6 +19,36 @@ WORKDIR /opt/ros/foxy/src/driver_node_ros2
 # 复制整个包
 COPY . .
 
+# 修改setup.py中的entry_points
+RUN echo 'from setuptools import setup\n\
+\n\
+package_name = "driver_node_ros2"\n\
+\n\
+setup(\n\
+    name=package_name,\n\
+    version="0.0.1",\n\
+    packages=[package_name],\n\
+    data_files=[\n\
+        ("share/ament_index/resource_index/packages",\n\
+            ["resource/" + package_name]),\n\
+        ("share/" + package_name, ["package.xml"]),\n\
+        ("share/" + package_name + "/config", ["config/deviceshifu_config.yaml"]),\n\
+        ("share/" + package_name + "/launch", ["launch/deviceshifu_driver.launch.py"]),\n\
+    ],\n\
+    install_requires=["setuptools"],\n\
+    zip_safe=True,\n\
+    maintainer="Your Name",\n\
+    maintainer_email="your-email@example.com",\n\
+    description="DeviceShifu driver node for ROS2",\n\
+    license="TODO",\n\
+    tests_require=["pytest"],\n\
+    entry_points={\n\
+        "console_scripts": [\n\
+            "driver_node = driver_node_ros2.driver_node:main"\n\
+        ],\n\
+    },\n\
+)' > setup.py
+
 # 构建和安装包
 RUN . /opt/ros/foxy/setup.sh && \
     cd /opt/ros/foxy && \
