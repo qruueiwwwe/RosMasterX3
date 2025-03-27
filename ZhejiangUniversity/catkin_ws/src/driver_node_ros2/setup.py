@@ -24,7 +24,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'driver_node_ros2 = driver_node_ros2.driver_node_ros2:main'
+            'driver_node = driver_node_ros2.driver_node:main'
         ],
     },
 )
