@@ -69,9 +69,7 @@ spec:
           limits:
             memory: "1Gi"
             cpu: "500m"
-        # volumeMounts:
-        # - name: camera
-        #   mountPath: /dev/video0
+        volumeMounts:
         - name: config
           mountPath: /opt/ros/foxy/share/driver_node_ros2/config
         livenessProbe:
@@ -91,10 +89,7 @@ spec:
             - list
           initialDelaySeconds: 5
           periodSeconds: 10
-      # volumes:
-      # - name: camera
-      #   hostPath:
-      #     path: /dev/video0
+      volumes:
       - name: config
         configMap:
           name: driver-config
