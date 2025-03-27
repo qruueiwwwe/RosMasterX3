@@ -67,7 +67,7 @@ setup(\n\
     tests_require=["pytest"],\n\
     entry_points={\n\
         "console_scripts": [\n\
-            "driver_node = driver_node_ros2.driver_node:main\n\
+            "driver_node = driver_node_ros2.driver_node:main"\n\
         ],\n\
     },\n\
 )' > setup.py
