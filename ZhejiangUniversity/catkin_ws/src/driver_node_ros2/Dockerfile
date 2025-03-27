@@ -78,7 +78,8 @@ RUN mkdir -p resource && \
 
 # 安装包
 RUN . /opt/ros/foxy/setup.sh && \
-    pip3 install -e .
+    pip3 install -e . && \
+    colcon build --symlink-install
 
 # 设置环境变量
 ENV ROS_DOMAIN_ID=0
@@ -87,6 +88,7 @@ ENV PYTHONPATH=/opt/ros/foxy/lib/python3.8/site-packages:${PYTHONPATH:-}
 # 创建启动脚本
 RUN echo '#!/bin/bash\n\
 source /opt/ros/foxy/setup.bash\n\
+source /opt/ros/foxy/share/driver_node_ros2/setup.bash\n\
 exec ros2 launch driver_node_ros2 deviceshifu_driver.launch.py' > /entrypoint.sh && \
     chmod +x /entrypoint.sh
 
