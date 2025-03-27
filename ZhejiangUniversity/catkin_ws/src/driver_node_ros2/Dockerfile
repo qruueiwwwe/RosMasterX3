@@ -18,7 +18,7 @@ WORKDIR /opt/ros/foxy/share/driver_node_ros2
 # 复制驱动代码和配置文件
 COPY driver_node_ros2/driver_node.py ./driver_node_ros2/
 COPY config/deviceshifu_config.yaml ./config/
-COPY launch/driver_node.launch.py ./launch/
+COPY launch/deviceshifu_driver.launch.py ./launch/
 
 # 设置环境变量
 ENV ROS_DOMAIN_ID=0
