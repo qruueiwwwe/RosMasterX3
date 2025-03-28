@@ -1,28 +1,45 @@
 # 使用 ROS Noetic core 镜像作为基础镜像
-FROM ghcr.io/ika-rwth-aachen/mqtt_client:ros
+FROM ros:noetic-ros-base
 
-# 安装Python依赖
+# 设置环境变量
+ENV DEBIAN_FRONTEND=noninteractive
+ARG ROS_DISTRO=noetic
+
+# 安装必要的系统依赖
 RUN apt-get update && apt-get install -y \
     python3-pip \
+    python3-opencv \
+    python3-numpy \
+    python3-yaml \
+    mosquitto \
+    mosquitto-clients \
     && rm -rf /var/lib/apt/lists/*
 
+# 安装 Python 依赖
+RUN pip3 install paho-mqtt flask requests
+
 # 创建工作目录
-WORKDIR /data
+WORKDIR /ros_ws
 
-# 将 参数文件 代码复制到容器中
-COPY params.yaml .
-COPY deviceshifu.yaml .
+# 复制 ROS1 工作空间
+COPY catkin_ws/src /ros_ws/src/
 
-# 复制自定义入口点脚本
-COPY entrypoint.sh .
+# 复制配置文件
+COPY dockerfile/params.yaml /ros_ws/config/
+COPY dockerfile/http_server.py /ros_ws/scripts/
+COPY dockerfile/entrypoint.sh /ros_ws/scripts/
 
-# 安装DeviceShifu依赖
-RUN pip3 install flask requests
+# 构建 ROS1 工作空间
+RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && \
+    catkin_make"
 
-# 添加入口点脚本的执行权限
-RUN chmod +x ./entrypoint.sh
+# 设置环境变量
+ENV PYTHONPATH=/ros_ws/devel/lib/python3/dist-packages:${PYTHONPATH:-}
+ENV PATH=/ros_ws/devel/bin:/opt/ros/$ROS_DISTRO/bin:${PATH}
+ENV LD_LIBRARY_PATH=/opt/ros/$ROS_DISTRO/lib:${LD_LIBRARY_PATH:-}
 
-# 设置入口点脚本
-ENTRYPOINT ["./entrypoint.sh"]
-#加了这个，就不会运行默认的程序
-# CMD ["bash"]
+# 设置入口点脚本权限
+RUN chmod +x /ros_ws/scripts/entrypoint.sh
+
+# 设置入口点
+ENTRYPOINT ["/ros_ws/scripts/entrypoint.sh"]

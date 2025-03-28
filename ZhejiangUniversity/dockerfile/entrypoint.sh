@@ -3,6 +3,7 @@ set -e
 
 # source ROS workspace
 source /opt/ros/$ROS_DISTRO/setup.bash
+source /ros_ws/devel/setup.bash
 [[ -f /opt/ws_rmw_zenoh/install/setup.bash ]] && source /opt/ws_rmw_zenoh/install/setup.bash
 [[ -f $WORKSPACE/devel/setup.bash ]] && source $WORKSPACE/devel/setup.bash
 [[ -f $WORKSPACE/install/setup.bash ]] && source $WORKSPACE/install/setup.bash
@@ -41,18 +42,20 @@ roslaunch mqtt_client standalone.launch params_file:="/data/params.yaml"
 # 启动 Mosquitto
 service mosquitto start
 
-# 启动ROS节点
-source /opt/ros/noetic/setup.bash
-source /opt/ros/foxy/setup.bash
-roslaunch driver_node_ros1 robot.launch &
-roslaunch driver_node_ros2 robot.launch &
+# 启动 ROS 节点
+if [ "$ROS_DISTRO" = "noetic" ]; then
+    # ROS1 节点
+    roslaunch driver_node_ros1 robot.launch &
+else
+    # ROS2 节点
+    ros2 run driver_node_ros2 driver_node --ros-args -p config_file:=/ros_ws/config/params.yaml &
+fi
 
 # 启动 MQTT 桥接服务
 ros2 run mqtt_bridge mqtt_bridge_node --ros-args -p config_file:=/ros_ws/config/params.yaml &
 
+# 启动 HTTP 服务器
+python3 /ros_ws/scripts/http_server.py &
 
-# 启动HTTP服务器
-python3 /data/http_server.py
-
-# 启动驱动节点
-ros2 run driver_node_ros2 driver_node --ros-args -p config_file:=/ros_ws/config/params.yaml
+# 等待所有后台进程
+wait

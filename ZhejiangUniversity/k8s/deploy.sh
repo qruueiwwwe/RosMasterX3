@@ -27,9 +27,9 @@ echo "构建 ROS2 镜像 ${ROS2_FULL_IMAGE_NAME}..."
 docker build -t ${ROS2_FULL_IMAGE_NAME} -f ../dockerfile/Dockerfile.ros2 ..
 
 # 推送镜像到仓库
-echo "推送镜像到仓库..."
-docker push ${ROS1_FULL_IMAGE_NAME}
-docker push ${ROS2_FULL_IMAGE_NAME}
+# echo "推送镜像到仓库..."
+# docker push ${ROS1_FULL_IMAGE_NAME}
+# docker push ${ROS2_FULL_IMAGE_NAME}
 
 # 设置环境变量
 export KUBECONFIG=~/.kube/config

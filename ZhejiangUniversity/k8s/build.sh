@@ -11,6 +11,10 @@ IMAGE_TAG="1.0"
 ROS1_FULL_IMAGE_NAME="${REGISTRY}/arm/nesc/${ROS1_IMAGE_NAME}:${IMAGE_TAG}"
 ROS2_FULL_IMAGE_NAME="${REGISTRY}/arm/nesc/${ROS2_IMAGE_NAME}:${IMAGE_TAG}"
 
+# 获取脚本所在目录的绝对路径
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
 echo "开始构建 ROS 机器人镜像..."
 
 # 检查 Docker 是否运行
@@ -21,15 +25,21 @@ fi
 
 # 构建 ROS1 镜像
 echo "构建 ROS1 镜像 ${ROS1_FULL_IMAGE_NAME}..."
-docker build -t ${ROS1_FULL_IMAGE_NAME} -f ../dockerfile/Dockerfile ..
+docker build -t ${ROS1_FULL_IMAGE_NAME} \
+    -f ${PROJECT_ROOT}/dockerfile/Dockerfile \
+    --build-arg ROS_DISTRO=noetic \
+    ${PROJECT_ROOT}
 
 # 构建 ROS2 镜像
 echo "构建 ROS2 镜像 ${ROS2_FULL_IMAGE_NAME}..."
-docker build -t ${ROS2_FULL_IMAGE_NAME} -f ../dockerfile/Dockerfile.ros2 ..
+docker build -t ${ROS2_FULL_IMAGE_NAME} \
+    -f ${PROJECT_ROOT}/dockerfile/Dockerfile.ros2 \
+    --build-arg ROS_DISTRO=foxy \
+    ${PROJECT_ROOT}
 
 # 推送镜像到仓库
-echo "推送镜像到仓库..."
-docker push ${ROS1_FULL_IMAGE_NAME}
-docker push ${ROS2_FULL_IMAGE_NAME}
+# echo "推送镜像到仓库..."
+# docker push ${ROS1_FULL_IMAGE_NAME}
+# docker push ${ROS2_FULL_IMAGE_NAME}
 
 echo "镜像构建和推送完成！" 
