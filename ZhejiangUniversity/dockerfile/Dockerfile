@@ -13,6 +13,11 @@ RUN apt-get update && apt-get install -y \
     python3-yaml \
     mosquitto \
     mosquitto-clients \
+    ros-noetic-cv-bridge \
+    ros-noetic-image-transport-plugins \
+    ros-noetic-image-transport \
+    ros-noetic-camera-info-manager \
+    ros-noetic-topic-tools \
     && rm -rf /var/lib/apt/lists/*
 
 # 安装 Python 依赖
