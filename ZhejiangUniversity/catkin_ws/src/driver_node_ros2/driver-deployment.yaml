@@ -22,8 +22,8 @@ metadata:
   name: mqtt-secret
 type: Opaque
 data:
-  mqtt-username: d2hlZWx0ZWM=        # wheeltec的base64编码
-  mqtt-password: ZG9uZ2d1YW4=        # dongguan的base64编码
+  mqtt-username: d2hlZWx0ZWM=  # wheeltec
+  mqtt-password: ZG9uZ2d1YW4=  # dongguan
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -62,32 +62,9 @@ spec:
               key: mqtt-password
         - name: DEVICE_ID
           value: "device001"
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "200m"
-          limits:
-            memory: "1Gi"
-            cpu: "500m"
         volumeMounts:
         - name: config
-          mountPath: /opt/ros/foxy/share/driver_node_ros2/config
-        livenessProbe:
-          exec:
-            command:
-            - /bin/bash
-            - -c
-            - "source /opt/ros/foxy/setup.bash && ros2 node info /deviceshifu_driver"
-          initialDelaySeconds: 5
-          periodSeconds: 10
-        readinessProbe:
-          exec:
-            command:
-            - /bin/bash
-            - -c
-            - "source /opt/ros/foxy/setup.bash && ros2 topic list"
-          initialDelaySeconds: 5
-          periodSeconds: 10
+          mountPath: /ros_ws/install/driver_node_ros2/share/driver_node_ros2/config
       volumes:
       - name: config
         configMap:
@@ -103,6 +80,5 @@ spec:
   ports:
   - port: 1883
     targetPort: 1883
-    protocol: TCP
     name: mqtt
   type: ClusterIP
