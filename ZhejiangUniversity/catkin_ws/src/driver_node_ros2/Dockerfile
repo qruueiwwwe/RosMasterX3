@@ -1,28 +1,26 @@
 # 使用官方 ROS2 Foxy 镜像
 FROM osrf/ros:foxy-desktop
 
-# 安装依赖
+# 安装必要的系统依赖
 RUN apt-get update && apt-get install -y \
     python3-pip \
-    python3-colcon-common-extensions \
+    python3-opencv \
+    python3-numpy \
+    python3-yaml \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install paho-mqtt opencv-python numpy
-
-# 创建工作空间
-WORKDIR /ros_ws/src
+# 创建工作空间目录
+WORKDIR /ros2_ws/src/driver_node_ros2
 COPY . .
 
-# 构建
-WORKDIR /ros_ws
-RUN . /opt/ros/foxy/setup.sh && \
-    colcon build --symlink-install
+# 设置工作空间
+WORKDIR /ros2_ws
+RUN /bin/bash -c "source /opt/ros/foxy/setup.bash && \
+    colcon build --symlink-install"
 
-# 设置启动脚本
-RUN echo '#!/bin/bash\n\
-source /opt/ros/foxy/setup.bash\n\
-source /ros_ws/install/setup.bash\n\
-exec ros2 launch driver_node_ros2 deviceshifu_driver.launch.py' > /entrypoint.sh && \
-    chmod +x /entrypoint.sh
+# 设置环境变量
+ENV PYTHONPATH=/ros2_ws/install/lib/python3.10/site-packages:$PYTHONPATH
 
-ENTRYPOINT ["/entrypoint.sh"]
+# 设置入口点
+ENTRYPOINT ["/bin/bash", "-c"]
+CMD ["source /opt/ros/humble/setup.bash && source /ros2_ws/install/setup.bash && ros2 run driver_node_ros2 driver_node"] 
