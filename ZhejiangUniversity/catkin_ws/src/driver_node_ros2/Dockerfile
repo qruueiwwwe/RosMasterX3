@@ -23,8 +23,8 @@ RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/r
 RUN apt-get update && apt-get install -y \
     ros-foxy-desktop \
     python3-colcon-common-extensions \
-    python3-ros2cli \
-    python3-ros2pkg \
+    ros-foxy-ros2cli \
+    ros-foxy-ros2pkg \
     python3-setuptools \
     python3-pkg-resources \
     && rm -rf /var/lib/apt/lists/*
