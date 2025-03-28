@@ -25,7 +25,14 @@ RUN /bin/bash -c "source /opt/ros/foxy/setup.bash && \
 
 # 设置环境变量
 ENV PYTHONPATH=/ros2_ws/install/lib/python3.10/site-packages:${PYTHONPATH:-}
+ENV PATH=/ros2_ws/install/bin:${PATH}
+
+# 创建启动脚本
+RUN echo '#!/bin/bash\n\
+source /opt/ros/foxy/setup.bash\n\
+source /ros2_ws/install/setup.bash\n\
+exec ros2 run driver_node_ros2 driver_node' > /ros2_ws/start.sh && \
+    chmod +x /ros2_ws/start.sh
 
 # 设置入口点
-ENTRYPOINT ["/bin/bash", "-c"]
-CMD ["source /opt/ros/foxy/setup.bash && source /ros2_ws/install/setup.bash && ros2 run driver_node_ros2 driver_node"] 
+ENTRYPOINT ["/ros2_ws/start.sh"] 
