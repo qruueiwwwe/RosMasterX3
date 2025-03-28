@@ -44,7 +44,7 @@ RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && \
 # 设置环境变量
 ENV PYTHONPATH=/ros_ws/devel/lib/python3/dist-packages:${PYTHONPATH:-}
 ENV PATH=/ros_ws/devel/bin:/opt/ros/$ROS_DISTRO/bin:${PATH}
-ENV LD_LIBRARY_PATH=/opt/ros/$ROS_DISTRO/lib:${LD_LIBRARY_PATH:-}
+ENV LD_LIBRARY_PATH=/opt/ros/$ROS_DISTRO/lib:/ros_ws/devel/lib:${LD_LIBRARY_PATH:-}
 
 # 设置入口点脚本权限
 RUN chmod +x /ros_ws/scripts/entrypoint.sh
