@@ -1,23 +1,22 @@
 # 使用官方 ROS2 Foxy 镜像
 FROM osrf/ros:foxy-desktop
 
-# 安装基础工具
+# 安装依赖
 RUN apt-get update && apt-get install -y \
     python3-pip \
     python3-colcon-common-extensions \
     && rm -rf /var/lib/apt/lists/*
 
-# 安装 Python 依赖
 RUN pip3 install paho-mqtt opencv-python numpy
 
-# 创建工作目录并复制文件
-WORKDIR /ros_ws/src/driver_node_ros2
+# 创建工作空间
+WORKDIR /ros_ws/src
 COPY . .
 
-# 构建 ROS2 包（关键：使用 --symlink-install 和简化忽略项）
+# 构建
 WORKDIR /ros_ws
 RUN . /opt/ros/foxy/setup.sh && \
-    colcon build --symlink-install --packages-select driver_node_ros2
+    colcon build --symlink-install
 
 # 设置启动脚本
 RUN echo '#!/bin/bash\n\
