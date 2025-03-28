@@ -36,8 +36,6 @@ if [[ $DOCKER_UID && $DOCKER_GID ]]; then
 else
     exec "$@"
 fi
-rosrun topic_tools throttle messages /imu 1.0 /imu_low &
-roslaunch mqtt_client standalone.launch params_file:="/data/params.yaml"
 
 # 启动 Mosquitto
 service mosquitto start
@@ -46,13 +44,16 @@ service mosquitto start
 if [ "$ROS_DISTRO" = "noetic" ]; then
     # ROS1 节点
     roslaunch driver_node_ros1 robot.launch &
+    # 启动 ROS1 的 MQTT 客户端
+    roslaunch mqtt_client standalone.launch params_file:=/ros_ws/config/params.yaml &
+    # 启动 ROS1 的 IMU 限流
+    rosrun topic_tools throttle messages /imu 1.0 /imu_low &
 else
     # ROS2 节点
     ros2 run driver_node_ros2 driver_node --ros-args -p config_file:=/ros_ws/config/params.yaml &
+    # 启动 ROS2 的 MQTT 桥接服务
+    ros2 run mqtt_bridge mqtt_bridge_node --ros-args -p config_file:=/ros_ws/config/params.yaml &
 fi
-
-# 启动 MQTT 桥接服务
-ros2 run mqtt_bridge mqtt_bridge_node --ros-args -p config_file:=/ros_ws/config/params.yaml &
 
 # 启动 HTTP 服务器
 python3 /ros_ws/scripts/http_server.py &

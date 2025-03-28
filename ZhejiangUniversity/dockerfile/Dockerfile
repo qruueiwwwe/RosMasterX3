@@ -22,7 +22,8 @@ RUN pip3 install paho-mqtt flask requests
 WORKDIR /ros_ws
 
 # 复制 ROS1 工作空间
-COPY catkin_ws/src /ros_ws/src/
+COPY catkin_ws/src/driver_node_ros1 /ros_ws/src/driver_node_ros1/
+COPY catkin_ws/src/wheeltec_robot_rc /ros_ws/src/wheeltec_robot_rc/
 
 # 复制配置文件
 COPY dockerfile/params.yaml /ros_ws/config/
