@@ -9,6 +9,9 @@ RUN apt-get update && apt-get install -y \
     python3-yaml \
     && rm -rf /var/lib/apt/lists/*
 
+# 安装Python依赖
+RUN pip3 install paho-mqtt
+
 # 创建工作空间目录
 WORKDIR /ros2_ws/src/driver_node_ros2
 COPY . .
@@ -31,7 +34,8 @@ ENV PATH=/ros2_ws/install/bin:${PATH}
 RUN echo '#!/bin/bash\n\
 source /opt/ros/foxy/setup.bash\n\
 source /ros2_ws/install/setup.bash\n\
-exec ros2 run driver_node_ros2 driver_node' > /ros2_ws/start.sh && \
+cd /ros2_ws\n\
+python3 -c "import rclpy; from driver_node_ros2.driver_node import main; main()"' > /ros2_ws/start.sh && \
     chmod +x /ros2_ws/start.sh
 
 # 设置入口点
