@@ -2,6 +2,7 @@ apiVersion: shifu.dev/v1alpha1
 kind: DeviceShifu
 metadata:
   name: ros-robot
+    namespace: devices
 spec:
   sku: "ROS-ROBOT-001"
   connection: Ethernet

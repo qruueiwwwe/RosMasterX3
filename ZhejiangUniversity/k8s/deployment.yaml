@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ros-robot
+  namespace: devices
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ros-robot
+  template:
+    metadata:
+      labels:
+        app: ros-robot
+    spec:
+      containers:
+      - name: ros-robot
+        image: 192.168.31.115:5000/arm/nesc/ros-to-mqtt:1.0
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 1883
+          name: mqtt
+        - containerPort: 8080
+          name: http
+        env:
+        - name: ROS_DOMAIN_ID
+          value: "0"
+        - name: MQTT_BROKER
+          value: "localhost"
+        - name: MQTT_PORT
+          value: "1883"
+        - name: MQTT_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: ros-robot-secret
+              key: mqtt-username
+        - name: MQTT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ros-robot-secret
+              key: mqtt-password
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: config
+          mountPath: /ros_ws/config
+      volumes:
+      - name: config
+        configMap:
+          name: ros-robot-config 

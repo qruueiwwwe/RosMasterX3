@@ -38,9 +38,21 @@ fi
 rosrun topic_tools throttle messages /imu 1.0 /imu_low &
 roslaunch mqtt_client standalone.launch params_file:="/data/params.yaml"
 
+# 启动 Mosquitto
+service mosquitto start
+
 # 启动ROS节点
 source /opt/ros/noetic/setup.bash
+source /opt/ros/foxy/setup.bash
 roslaunch driver_node_ros1 robot.launch &
+roslaunch driver_node_ros2 robot.launch &
+
+# 启动 MQTT 桥接服务
+ros2 run mqtt_bridge mqtt_bridge_node --ros-args -p config_file:=/ros_ws/config/params.yaml &
+
 
 # 启动HTTP服务器
 python3 /data/http_server.py
+
+# 启动驱动节点
+ros2 run driver_node_ros2 driver_node --ros-args -p config_file:=/ros_ws/config/params.yaml

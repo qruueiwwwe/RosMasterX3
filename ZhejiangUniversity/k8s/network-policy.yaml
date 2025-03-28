@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ros-robot-network-policy
+  namespace: devices
+spec:
+  podSelector:
+    matchLabels:
+      app: ros-robot
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: devices
+    ports:
+    - protocol: TCP
+      port: 8080
+    - protocol: TCP
+      port: 1883
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: devices
+    ports:
+    - protocol: TCP
+      port: 1883 

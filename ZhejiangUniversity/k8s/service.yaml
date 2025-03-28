@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ros-robot-service
+  namespace: devices
+spec:
+  selector:
+    app: ros-robot
+  ports:
+  - port: 1883
+    targetPort: 1883
+    name: mqtt
+  - port: 8080
+    targetPort: 8080
+    name: http
+  type: ClusterIP 
