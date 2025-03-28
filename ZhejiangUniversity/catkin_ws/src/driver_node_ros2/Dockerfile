@@ -13,9 +13,10 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /ros2_ws/src/driver_node_ros2
 COPY . .
 
-# 确保Python包目录存在并包含__init__.py
-RUN mkdir -p src/driver_node_ros2 && \
-    touch src/driver_node_ros2/__init__.py
+# 创建正确的Python包结构
+RUN mkdir -p driver_node_ros2 && \
+    touch driver_node_ros2/__init__.py && \
+    cp -r src/driver_node_ros2/* driver_node_ros2/ 2>/dev/null || true
 
 # 设置工作空间
 WORKDIR /ros2_ws
@@ -23,7 +24,7 @@ RUN /bin/bash -c "source /opt/ros/foxy/setup.bash && \
     colcon build --symlink-install"
 
 # 设置环境变量
-ENV PYTHONPATH=/ros2_ws/install/lib/python3.10/site-packages:${PYTHONPATH}
+ENV PYTHONPATH=/ros2_ws/install/lib/python3.10/site-packages:${PYTHONPATH:-}
 
 # 设置入口点
 ENTRYPOINT ["/bin/bash", "-c"]
