@@ -18,6 +18,8 @@ RUN apt-get update && apt-get install -y \
     ros-noetic-image-transport \
     ros-noetic-camera-info-manager \
     ros-noetic-topic-tools \
+    ros-noetic-joy \
+    ros-noetic-desktop-full \
     && rm -rf /var/lib/apt/lists/*
 
 # 安装 Python 依赖
@@ -36,7 +38,7 @@ COPY dockerfile/http_server.py /ros_ws/scripts/
 COPY dockerfile/entrypoint.sh /ros_ws/scripts/
 
 # 构建 ROS1 工作空间
-RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && \
+RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && \
     catkin_make"
 
 # 设置环境变量
