@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ros-robot
+  name: ros2-robot
   namespace: devices
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: ros-robot
+      app: ros2-robot
   template:
     metadata:
       labels:
-        app: ros-robot
+        app: ros2-robot
     spec:
       containers:
-      - name: ros-robot
-        image: 192.168.31.115:5000/arm/nesc/ros-robot:1.0
+      - name: ros2-robot
+        image: 192.168.31.115:5000/arm/nesc/ros2-robot:1.0
         imagePullPolicy: Always
         ports:
         - containerPort: 1883
