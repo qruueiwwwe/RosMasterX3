@@ -22,10 +22,11 @@ RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/r
 # 安装 ROS 2
 RUN apt-get update && apt-get install -y \
     ros-foxy-desktop \
+    python3-colcon-common-extensions \
     && rm -rf /var/lib/apt/lists/*
 
 # 安装Python依赖
-RUN pip3 install paho-mqtt
+RUN pip3 install paho-mqtt colcon-common-extensions
 
 # 创建工作空间目录
 WORKDIR /ros2_ws/src/driver_node_ros2
