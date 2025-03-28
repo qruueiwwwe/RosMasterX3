@@ -1,6 +1,4 @@
 from setuptools import setup
-import os
-from glob import glob
 
 package_name = "driver_node_ros2"
 
@@ -18,6 +16,7 @@ setup(
     zip_safe=True,
     entry_points={
         "console_scripts": [
+            # 确保此处指向正确的 Python 模块路径
             "driver_node = driver_node_ros2.driver_node:main"
         ],
     },
