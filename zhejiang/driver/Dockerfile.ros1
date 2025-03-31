@@ -6,9 +6,9 @@ WORKDIR /app
 
 # 安装Python依赖
 RUN pip install --no-cache-dir \
-    rospy \
-    geometry_msgs \
-    std_msgs
+    numpy \
+    pyserial \
+    requests
 
 # 复制ROS1驱动代码
 COPY driver_ros1.py /app/
