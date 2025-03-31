@@ -2,7 +2,7 @@ apiVersion: shifu.edgenesis.io/v1alpha1
 kind: EdgeDevice
 metadata:
   name: ros1-driver
-  namespace: deviceshifu
+  namespace: kind
 spec:
   sku: "ROS1-Driver"
   connection: Ethernet
