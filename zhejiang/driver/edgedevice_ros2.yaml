@@ -6,12 +6,18 @@ metadata:
 spec:
   sku: "ROS2-Driver"
   connection: Ethernet
-  address: "0.0.0.0:11112"  # 这里需要根据你的实际ROS2 domain ID修改
+  address: "宿主机IP:8080"  # 替换为实际宿主机IP
   protocol: HTTP
   protocolSettings:
     TCPSetting:
-      ListenPort: "8081"
+      ListenPort: "8081"  # 驱动容器监听的端口
       NetworkType: "tcp"
   customMetadata:
-    ROS_DOMAIN_ID: "0"
-    ROS_LOCALHOST_ONLY: "0" 
+    ROS_DOMAIN_ID: "0"  # 保持与驱动代码一致
+    ROS_LOCALHOST_ONLY: "0"  # 0 表示允许跨主机通信
+  driver:  # 新增驱动容器配置
+    image: driver_ros2:latest  # 镜像名称
+    command: ["python3", "/app/driver_ros2.py"]  # 启动命令
+    env:  # 可选环境变量（根据需要添加）
+      - name: ROS_DOMAIN_ID
+        value: "0"
