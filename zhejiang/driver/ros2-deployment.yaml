@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ros2-driver
+  namespace: deviceshifu
+  labels:
+    app: ros2-driver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ros2-driver
+  template:
+    metadata:
+      labels:
+        app: ros2-driver
+    spec:
+      containers:
+      - name: ros2-driver
+        image: driver_ros2:latest  # 替换为你的镜像名称
+        command: ["python3", "/app/driver_ros2.py"]  # 启动命令
+        env:
+        - name: ROS_DOMAIN_ID
+          value: "0"
+        ports:
+        - containerPort: 8081  # 与 EdgeDevice 的 ListenPort 一致
