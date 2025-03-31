@@ -9,9 +9,12 @@ spec:
   address: "0.0.0.0:11112"  # 这里需要根据你的实际ROS2 domain ID修改
   protocol: HTTP
   protocolSettings:
-    HTTPSetting:
-      ContentType: "application/json"
-      TimeoutInMilliseconds: 5000
+    TCPSetting:
+      ListenPort: "8081"
+      NetworkType: "tcp"
+  customMetadata:
+    ROS_DOMAIN_ID: "0"
+    ROS_LOCALHOST_ONLY: "0"
   customInstructions: |
     - name: "start"
       description: "启动ROS2驱动"

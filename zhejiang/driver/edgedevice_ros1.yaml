@@ -9,9 +9,12 @@ spec:
   address: "0.0.0.0:11112"  # 这里需要根据你的实际ROS master地址修改
   protocol: HTTP
   protocolSettings:
-    HTTPSetting:
-      ContentType: "application/json"
-      TimeoutInMilliseconds: 5000
+    TCPSetting:
+      ListenPort: "8081"
+      NetworkType: "tcp"
+  customMetadata:
+    ROS_MASTER_URI: "http://0.0.0.0:11311"
+    ROS_IP: "0.0.0.0"
   customInstructions: |
     - name: "start"
       description: "启动ROS1驱动"
