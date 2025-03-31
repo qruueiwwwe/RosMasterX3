@@ -4,29 +4,11 @@ FROM python:3.8-slim
 # 设置工作目录
 WORKDIR /app
 
-# 安装ROS1依赖
-RUN apt-get update && apt-get install -y \
-    curl \
-    gnupg2 \
-    lsb-release \
-    && rm -rf /var/lib/apt/lists/*
-
-# 添加ROS1仓库
-RUN sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
-RUN curl -sSL 'http://keyserver.ubuntu.com/pks/lookup?op=get&search=0xC1CF6E31E6BADE8868B172B4F42ED6FBAB17C654' | apt-key add -
-
-# # 安装ROS1 Noetic
-# RUN apt-get update && apt-get install -y \
-#     ros-noetic-ros-base \
-#     python3-rospy \
-#     python3-geometry-msgs \
-#     python3-std-msgs \
-#     && rm -rf /var/lib/apt/lists/*
-
-# 设置ROS环境变量
-ENV ROS_DISTRO=noetic
-ENV ROS_PYTHON_VERSION=3
-ENV PYTHONPATH=/opt/ros/noetic/lib/python3/dist-packages
+# 安装Python依赖
+RUN pip install --no-cache-dir \
+    rospy \
+    geometry_msgs \
+    std_msgs
 
 # 复制ROS1驱动代码
 COPY driver_ros1.py /app/
@@ -35,4 +17,4 @@ COPY driver_ros1.py /app/
 RUN chmod +x /app/driver_ros1.py
 
 # 启动命令
-CMD ["rosrun", "driver_node", "driver_ros1.py"] 
+CMD ["python3", "/app/driver_ros1.py"] 
