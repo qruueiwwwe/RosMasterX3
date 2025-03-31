@@ -1,0 +1,38 @@
+# 使用Python 3.10作为基础镜像
+FROM python:3.10-slim
+
+# 设置工作目录
+WORKDIR /app
+
+# 安装ROS2依赖
+RUN apt-get update && apt-get install -y \
+    curl \
+    gnupg2 \
+    lsb-release \
+    && rm -rf /var/lib/apt/lists/*
+
+# 添加ROS2仓库
+RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
+RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null
+
+# 安装ROS2 Humble
+RUN apt-get update && apt-get install -y \
+    ros-humble-ros-base \
+    python3-rclpy \
+    python3-geometry-msgs \
+    python3-std-msgs \
+    python3-yaml \
+    && rm -rf /var/lib/apt/lists/*
+
+# 设置ROS2环境变量
+ENV ROS_DISTRO=humble
+ENV PYTHONPATH=/opt/ros/humble/lib/python3.10/site-packages
+
+# 复制ROS2驱动代码
+COPY driver_ros2.py /app/
+
+# 设置执行权限
+RUN chmod +x /app/driver_ros2.py
+
+# 启动命令
+CMD ["ros2", "run", "driver_node", "driver_ros2.py"] 

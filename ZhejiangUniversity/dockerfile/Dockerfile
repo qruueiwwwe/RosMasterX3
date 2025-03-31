@@ -1,15 +1,27 @@
 # 构建阶段
-FROM ros:noetic-ros-base AS builder
+FROM ubuntu:20.04 AS builder
 
 # 设置环境变量
 ENV DEBIAN_FRONTEND=noninteractive
 ARG ROS_DISTRO=noetic
 
-# 安装构建依赖
+# 使用国内镜像源
+RUN sed -i 's/archive.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list && \
+    sed -i 's/security.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list
+
+# 安装 ROS1 仓库
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    software-properties-common \
+    && add-apt-repository "deb http://mirrors.aliyun.com/ros/ubuntu/ $(lsb_release -sc) main" \
+    && apt-key adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-key C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654 \
+    && apt-get update
+
+# 安装构建依赖
+RUN apt-get install -y --no-install-recommends \
     python3-pip \
     python3-numpy \
     python3-yaml \
+    ros-noetic-ros-base \
     ros-noetic-cv-bridge \
     ros-noetic-image-transport \
     ros-noetic-camera-info-manager \
@@ -31,19 +43,31 @@ RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && \
     catkin_make"
 
 # 最终阶段
-FROM ros:noetic-ros-base
+FROM ubuntu:20.04
 
 # 设置环境变量
 ENV DEBIAN_FRONTEND=noninteractive
 ARG ROS_DISTRO=noetic
 
-# 安装运行时依赖
+# 使用国内镜像源
+RUN sed -i 's/archive.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list && \
+    sed -i 's/security.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list
+
+# 安装 ROS1 仓库
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    software-properties-common \
+    && add-apt-repository "deb http://mirrors.aliyun.com/ros/ubuntu/ $(lsb_release -sc) main" \
+    && apt-key adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-key C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654 \
+    && apt-get update
+
+# 安装运行时依赖
+RUN apt-get install -y --no-install-recommends \
     python3-pip \
     python3-numpy \
     python3-yaml \
     mosquitto \
     mosquitto-clients \
+    ros-noetic-ros-base \
     ros-noetic-cv-bridge \
     ros-noetic-image-transport \
     ros-noetic-camera-info-manager \
