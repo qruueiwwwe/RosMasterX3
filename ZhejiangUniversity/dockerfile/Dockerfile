@@ -8,7 +8,6 @@ ARG ROS_DISTRO=noetic
 # 安装构建依赖
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
-    python3-opencv \
     python3-numpy \
     python3-yaml \
     ros-noetic-cv-bridge \
@@ -18,7 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # 安装 Python 依赖
-RUN pip3 install --no-cache-dir paho-mqtt flask requests
+RUN pip3 install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple paho-mqtt flask requests
 
 # 创建工作目录
 WORKDIR /ros_ws
@@ -41,7 +40,6 @@ ARG ROS_DISTRO=noetic
 # 安装运行时依赖
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
-    python3-opencv \
     python3-numpy \
     python3-yaml \
     mosquitto \
@@ -53,7 +51,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # 安装 Python 依赖
-RUN pip3 install --no-cache-dir paho-mqtt flask requests
+RUN pip3 install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple paho-mqtt flask requests
 
 # 创建工作目录
 WORKDIR /ros_ws
