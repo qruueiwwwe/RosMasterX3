@@ -20,3 +20,28 @@ spec:
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080
+        env:
+        - name: ROS_DOMAIN_ID
+          value: "0"
+        - name: ROS_LOCALHOST_ONLY
+          value: "0"
+        - name: ROS_DISTRO
+          value: "foxy"
+        - name: PYTHONPATH
+          value: "/opt/ros/foxy/lib/python3.8/site-packages"
+        - name: LD_LIBRARY_PATH
+          value: "/opt/ros/foxy/lib"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        volumeMounts:
+        - name: ros2-config
+          mountPath: /app/config
+      volumes:
+      - name: ros2-config
+        configMap:
+          name: ros2-config
