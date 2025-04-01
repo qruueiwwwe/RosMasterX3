@@ -1,5 +1,5 @@
-# 使用包含完整 ROS 功能的镜像
-FROM ros:noetic-desktop-full
+# 使用正确的镜像名称（由 osrf 维护）
+FROM osrf/ros:noetic-desktop-full
 
 # 设置工作目录
 WORKDIR /app
