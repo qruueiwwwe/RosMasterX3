@@ -15,3 +15,7 @@ spec:
   customMetadata:
     ROS_MASTER_URI: "http://宿主机IP:11311"
     ROS_IP: "宿主机IP"
+    ROS_DISTRO: "noetic"
+    PYTHONPATH: "/opt/ros/noetic/lib/python3/dist-packages"
+    LD_LIBRARY_PATH: "/opt/ros/noetic/lib"
+    ROS_PACKAGE_PATH: "/opt/ros/noetic/share"

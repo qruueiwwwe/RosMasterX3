@@ -20,3 +20,30 @@ spec:
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080
+        env:
+        - name: ROS_MASTER_URI
+          value: "http://宿主机IP:11311"
+        - name: ROS_IP
+          value: "宿主机IP"
+        - name: ROS_DISTRO
+          value: "noetic"
+        - name: PYTHONPATH
+          value: "/opt/ros/noetic/lib/python3/dist-packages"
+        - name: LD_LIBRARY_PATH
+          value: "/opt/ros/noetic/lib"
+        - name: ROS_PACKAGE_PATH
+          value: "/opt/ros/noetic/share"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        volumeMounts:
+        - name: ros1-config
+          mountPath: /app/config
+      volumes:
+      - name: ros1-config
+        configMap:
+          name: ros1-config

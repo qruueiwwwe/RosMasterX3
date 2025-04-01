@@ -1,11 +1,15 @@
-# 使用Python 3.8作为基础镜像
-FROM python:3.8-slim
+# 使用ROS Noetic作为基础镜像
+FROM ros:noetic
 
 # 设置工作目录
 WORKDIR /app
 
 # 安装Python依赖
-RUN pip install --no-cache-dir \
+RUN apt-get update && apt-get install -y \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip3 install --no-cache-dir \
     numpy \
     pyserial \
     requests
@@ -15,6 +19,9 @@ COPY driver_ros1.py /app/
 
 # 设置执行权限
 RUN chmod +x /app/driver_ros1.py
+
+# 设置ROS1环境
+RUN echo "source /opt/ros/noetic/setup.bash" >> /root/.bashrc
 
 # 启动命令
 CMD ["python3", "/app/driver_ros1.py"] 
