@@ -1,10 +1,10 @@
-# 使用ROS Noetic作为基础镜像
-FROM ros:noetic
+# 使用包含完整 ROS 功能的镜像
+FROM ros:noetic-desktop-full
 
 # 设置工作目录
 WORKDIR /app
 
-# 安装Python依赖
+# 安装 Python 依赖
 RUN apt-get update && apt-get install -y \
     python3-pip \
     && rm -rf /var/lib/apt/lists/*
@@ -14,14 +14,11 @@ RUN pip3 install --no-cache-dir \
     pyserial \
     requests
 
-# 复制ROS1驱动代码
+# 复制 ROS1 驱动代码
 COPY driver_ros1.py /app/
 
 # 设置执行权限
 RUN chmod +x /app/driver_ros1.py
 
-# 设置ROS1环境
-RUN echo "source /opt/ros/noetic/setup.bash" >> /root/.bashrc
-
-# 启动命令
-CMD ["python3", "/app/driver_ros1.py"] 
+# 启动命令（加载 ROS 环境后运行驱动）
+CMD ["/bin/bash", "-c", "source /opt/ros/noetic/setup.bash && python3 /app/driver_ros1.py"]
