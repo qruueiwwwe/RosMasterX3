@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: ros-robot
-        image: 192.168.31.115:5000/arm/nesc/ros-robot:1.0
+        image: localhost:5000/ros-robot:1.0
         imagePullPolicy: Always
         ports:
         - containerPort: 1883
