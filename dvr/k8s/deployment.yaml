@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
       - name: ros-robot
-        image: localhost:5000/ros-robot:1.0
-        imagePullPolicy: Always
+        image: ros-robot:1.0
+        imagePullPolicy: Never
         ports:
         - containerPort: 1883
           name: mqtt
