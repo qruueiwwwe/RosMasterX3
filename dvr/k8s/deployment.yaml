@@ -26,7 +26,7 @@ spec:
         - name: ROS_DISTRO
           value: "noetic"
         - name: PYTHONPATH
-          value: "/opt/ros/noetic/lib/python3/dist-packages"
+          value: "/ros_ws/scripts:/opt/ros/noetic/lib/python3/dist-packages"
         - name: LD_LIBRARY_PATH
           value: "/opt/ros/noetic/lib"
         - name: MQTT_BROKER

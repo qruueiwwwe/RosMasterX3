@@ -26,7 +26,7 @@ COPY . /ros_ws/
 RUN chmod +x /ros_ws/driver_node.py
 
 # 设置环境变量
-ENV PYTHONPATH=/opt/ros/noetic/lib/python3/dist-packages:${PYTHONPATH:-}
+ENV PYTHONPATH=/ros_ws/scripts:/opt/ros/noetic/lib/python3/dist-packages:${PYTHONPATH:-}
 ENV PATH=/opt/ros/noetic/bin:${PATH}
 ENV LD_LIBRARY_PATH=/opt/ros/noetic/lib:${LD_LIBRARY_PATH:-}
 
