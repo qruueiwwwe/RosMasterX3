@@ -1,0 +1,26 @@
+# 驱动节点参数配置
+driver:
+  # 机器人控制参数
+  linear_speed: 0.5  # 线速度
+  angular_speed: 0.2  # 角速度
+  camera_fps: 30     # 相机帧率
+
+  # MQTT 配置
+  mqtt:
+    broker: "localhost"
+    port: 1883
+    username: "ros_robot"
+    password: "ros_robot"
+    topics:
+      command: "robot/command"
+      status: "robot/status"
+      image: "robot/image"
+
+  # HTTP 服务配置
+  http:
+    host: "0.0.0.0"
+    port: 8080
+    endpoints:
+      health: "/health"
+      ready: "/ready"
+      command: "/command" 
