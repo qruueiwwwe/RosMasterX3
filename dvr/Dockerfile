@@ -7,6 +7,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # 安装必要的依赖
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
+    python3 \
     python3-yaml \
     ros-noetic-cv-bridge \
     ros-noetic-image-transport \
