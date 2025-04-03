@@ -23,6 +23,12 @@ spec:
         - containerPort: 8080
           name: http
         env:
+        - name: ROS_DISTRO
+          value: "noetic"
+        - name: PYTHONPATH
+          value: "/opt/ros/noetic/lib/python3/dist-packages"
+        - name: LD_LIBRARY_PATH
+          value: "/opt/ros/noetic/lib"
         - name: MQTT_BROKER
           value: "localhost"
         - name: MQTT_PORT

@@ -31,4 +31,4 @@ ENV PATH=/opt/ros/noetic/bin:${PATH}
 ENV LD_LIBRARY_PATH=/opt/ros/noetic/lib:${LD_LIBRARY_PATH:-}
 
 # 设置入口点
-ENTRYPOINT ["/ros_ws/driver_node.py"] 
+ENTRYPOINT ["/bin/bash", "-c", "source /opt/ros/noetic/setup.bash && python3 /ros_ws/driver_node.py"] 
